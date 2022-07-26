@@ -1,0 +1,88 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v7.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v7.0": {
+      "TrainingServer/1.0.0": {
+        "dependencies": {
+          "CIFPReader": "1.0.0",
+          "IVAN.FSD": "1.0.0",
+          "IVAN.FSD.Protocol": "1.0.0",
+          "TrainingServer.Extensibility": "1.0.0"
+        },
+        "runtime": {
+          "TrainingServer.dll": {}
+        }
+      },
+      "System.IO.Pipelines/6.0.1": {
+        "runtime": {
+          "lib/net6.0/System.IO.Pipelines.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.121.56705"
+          }
+        }
+      },
+      "CIFPReader/1.0.0": {
+        "runtime": {
+          "CIFPReader.dll": {}
+        }
+      },
+      "IVAN.FSD/1.0.0": {
+        "dependencies": {
+          "IVAN.FSD.Protocol": "1.0.0",
+          "System.IO.Pipelines": "6.0.1"
+        },
+        "runtime": {
+          "IVAN.FSD.dll": {}
+        }
+      },
+      "IVAN.FSD.Protocol/1.0.0": {
+        "runtime": {
+          "IVAN.FSD.Protocol.dll": {}
+        }
+      },
+      "TrainingServer.Extensibility/1.0.0": {
+        "runtime": {
+          "TrainingServer.Extensibility.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "TrainingServer/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "System.IO.Pipelines/6.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-1j1pZX1ICzEyjafyssU3BzWVxUsaN3zq0wEmGKj3bxINC6NkmS30eEVuZ7k/QX2UKYNCaUch6g46taYKxcpFtw==",
+      "path": "system.io.pipelines/6.0.1",
+      "hashPath": "system.io.pipelines.6.0.1.nupkg.sha512"
+    },
+    "CIFPReader/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "IVAN.FSD/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "IVAN.FSD.Protocol/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "TrainingServer.Extensibility/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
