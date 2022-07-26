@@ -59,11 +59,14 @@ namespace TrainingServer
 		/// <param name="maximum">The maximum groundspeed in knots to decelerate to.</param>
 		/// <param name="acceleration">The acceleration/deceleration rate in kts per second.</param>
 		void RestrictSpeed(uint minimum, uint maximum, float acceleration);
+
+		/// <summary>Immediately disconnects the aircraft.</summary>
+		void Kill();
 	}
 
 	public interface IServer
 	{
-		void SpawnAircraft(string callsign, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
+		bool SpawnAircraft(string callsign, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
 	}
 
 	public struct Coordinate
