@@ -7,8 +7,11 @@ namespace BasicIcao;
 
 public class Plugin : IPlugin
 {
+#if DEBUG
+	public string FriendlyName => "Basic Heading, Altitude, Speed, and Squawk Control (DEBUG)";
+#else
 	public string FriendlyName => "Basic Heading, Altitude, Speed, and Squawk Control";
-
+#endif
 	public string Maintainer => "Wes (644899)";
 
 	private readonly Regex _headingRegex, _altitudeRegex, _speedRegex, _squawkRegex;
@@ -17,10 +20,23 @@ public class Plugin : IPlugin
 	{
 		RegexOptions rxo = RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture;
 
-		_headingRegex	= new(@"^FH\s*(?<hdg>\d+(\.\d+)?)", rxo);
-		_altitudeRegex	= new(@"^[CD]\s*(?<alt>\d+)", rxo);
-		_speedRegex		= new(@"^SPD\s*(?<spd>\d+)", rxo);
-		_squawkRegex	= new(@"^SQK?\s*(?<sqk>\d{4})", rxo);
+		string[] regexes = new[]
+		{
+			@"^FH\s*(?<hdg>\d+(\.\d+)?)",
+			@"^[CD]\s*(?<alt>\d+)",
+			@"^SPD\s*(?<spd>\d+)",
+			@"^SQK?\s*(?<sqk>\d{4})"
+		};
+
+		if (File.Exists("commands.re") && File.ReadAllLines("commands.re").Length >= 4)
+			regexes = File.ReadAllLines("commands.re");
+		else
+			File.WriteAllLines("commands.re", regexes);
+
+		_headingRegex	= new(regexes[0], rxo);
+		_altitudeRegex	= new(regexes[1], rxo);
+		_speedRegex		= new(regexes[2], rxo);
+		_squawkRegex	= new(regexes[3], rxo);
 	}
 
 	private bool TryBreakUp(string message, out object[] fragments, out ushort? squawk)

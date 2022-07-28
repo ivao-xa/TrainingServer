@@ -17,3 +17,6 @@ When creating plugins, reference the most recent `TrainingServer.Extensibility.d
 
 ## Contributing
 To include your changes, fork this repository, create your plugin following the pattern of this repository, then submit a pull request. Contributors are required to check their own code for licensing issues and necessary approvals before filing a pull request.
+
+## Troubleshooting
+Windows <7 and some older versions of Windows 10 may not have the necessary capabilities to run the self-contained version of the application. If this issue affects you ("This app can't run on your PC"), download the latest .NET 7.0 or higher runtime and use the Framework version of the application.

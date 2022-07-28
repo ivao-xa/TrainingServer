@@ -7,14 +7,18 @@ namespace SpawnAircraft;
 
 public class Plugin : IServerPlugin
 {
+#if DEBUG
+	public string FriendlyName => "Aircraft Spawner (DEBUG)";
+#else
 	public string FriendlyName => "Aircraft Spawner";
+#endif
 	public string Maintainer => "Wes (644899)";
 
 	private readonly Regex _spawnCommand;
 
 	public Plugin()
 	{
-		string regex = @"^(?<callsign>\w+) AT (?<lat>[+-]?\d+(\.\d+)?)[ /;](?<lon>[+-]?\d+(\.\d+)?);?( HDG (?<heading>\d+(.\d+)?))?( SPD (?<speed>\d+))?( ALT (?<altitude>-?\d+))?$";
+		string regex = @"^(?<callsign>\w+)\s+AT\s+(?<lat>[+-]?\d+(\.\d+)?)[ /;](?<lon>[+-]?\d+(\.\d+)?);?(\s+HDG\s*(?<heading>\d+(.\d+)?))?(\s+SPD\s*(?<speed>\d+))?(\s+ALT\s*(?<altitude>-?\d+))?$";
 
 		if (File.Exists("spawner.re"))
 			regex = File.ReadAllText("spawner.re").Trim();
@@ -28,7 +32,7 @@ public class Plugin : IServerPlugin
 
 	public string? MessageReceived(IServer server, string sender, string message)
 	{
-		var command = _spawnCommand.Match(message).Groups;
+		var command = _spawnCommand.Match(message.Trim()).Groups;
 
 		string callsign = command["callsign"].Value;
 		double lat = double.Parse(command["lat"].Value), lon = double.Parse(command["lon"].Value);
