@@ -1,6 +1,9 @@
 # IVAO Extensible Training Server
 > A plugin-based tool for IVAO ATC training
 
+## IMPORTANT NOTE
+This tool is for use in IVAO trainings administered by IVAO trainers using official IVAO software only. Usage by other means, other people, or for other purposes are expressly _forbidden_.
+
 This repository distributes the new _IVAO Extensible Training Server_ as a replacement for HAL, presents a curated library of plugins, and provides documentation and libraries for the creation of new plugins.
 
 ## Downloading the Training Server
