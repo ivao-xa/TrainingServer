@@ -9,3 +9,6 @@ FH 180
 FH 180 C 050
 SPD 250 D 250 FH 090
 ```
+
+Maintainer: Wes (644899; XA)  
+With special thanks to: Philip (527188; AT)
