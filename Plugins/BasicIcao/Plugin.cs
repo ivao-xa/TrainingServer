@@ -116,12 +116,12 @@ public class Plugin : IPlugin
 					break;
 
 				case int alt:
-					aircraft.RestrictAltitude(alt, alt, 1000);
+					aircraft.RestrictAltitude(alt, alt, (uint)(aircraft.Altitude > alt ? 1500 : 1000));
 					msgBacks.Add($"altitude {alt / 100:000}");
 					break;
 
 				case uint spd:
-					aircraft.RestrictSpeed(spd, spd, 5f);
+					aircraft.RestrictSpeed(spd, spd, aircraft.GroundSpeed > spd ? 2.5f : 5f);
 					msgBacks.Add($"speed {spd:000}");
 					break;
 
