@@ -12,4 +12,8 @@
     </Reference>
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="move $(OutDir)$(AssemblyName).dll $(ProjectDir)" />
+  </Target>
+
 </Project>
