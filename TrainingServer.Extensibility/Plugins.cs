@@ -1,4 +1,6 @@
-﻿namespace TrainingServer.Extensibility
+﻿using System.Text.RegularExpressions;
+
+namespace TrainingServer.Extensibility
 {
 	public interface IPlugin
 	{
@@ -37,5 +39,19 @@
 		/// <param name="message">The message that was sent.</param>
 		/// <returns>Optionally, the reply for the controller.</returns>
 		string? MessageReceived(IServer server, string sender, string message);
+	}
+
+	public interface IRewriter
+	{
+		string FriendlyName { get; }
+		string Maintainer { get; }
+
+		/// <summary>The <see cref="Regex"/> to test messages against.</summary>
+		Regex Pattern { get; }
+
+		/// <summary>Called if <see cref="Pattern"/> matches <paramref name="message"/>.</summary>
+		/// <param name="message">The message to the server or a known aircraft.</param>
+		/// <returns>The modified message to pass to other <see cref="IRewriter">IRewriters</see>, then any loaded plugins.</returns>
+		string Rewrite(string message);
 	}
 }
