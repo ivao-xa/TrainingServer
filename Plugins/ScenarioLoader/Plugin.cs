@@ -29,24 +29,37 @@ public class Plugin : IServerPlugin
 
         foreach (string command in File.ReadAllLines(path).Select(l => l.Trim()).Where(l => !string.IsNullOrEmpty(l)))
         {
-            Console.WriteLine(command);
+            Console.WriteLine(command + " | DEBUG LINE");
             string[] parts = command.Split();
-            switch (parts[0].ToUpper())
-            {
-                case "SPAWN":
-                    server.SpawnAircraft(
-                        parts[1],
-                        new('I', 'S', "1/A320/M-SDG/LB1", "N450", "LJLJ", new(), new(), "F320", "LJMB", 0, 0, 0, 0, "????", "RMK/PLUGIN GENERATED AIRCRAFT. FLIGHT PLAN MAY BE INACCURATE.", "DCT"),
-                        new() { Latitude = double.Parse(parts[3]), Longitude = double.Parse(parts[4]) },
-                        float.Parse(parts[6]),
-                        uint.Parse(parts[8]),
-                        int.Parse(parts[10])
-                    );
-                    break;
+            try {
+                switch (parts[0].ToUpper())
+                {
+                    case "SPAWN":
+                        Console.WriteLine("Creating aircraft: " + parts[1]);
+                        server.SpawnAircraft(
+                            parts[1],
+                            new('I', 'S', "1/A320/M-SDG/LB1", "N450", "LJLJ", new(), new(), "F320", "LJMB", 0, 0, 0, 0, "????", "RMK/PLUGIN GENERATED AIRCRAFT. FLIGHT PLAN MAY BE INACCURATE.", "DCT"),
+                            new() { Latitude = double.Parse(parts[3]), Longitude = double.Parse(parts[4]) },
+                            float.Parse(parts[6]),
+                            uint.Parse(parts[8]),
+                            int.Parse(parts[10])
+                        );
+                        Console.WriteLine("Lat: " + parts[3] + " | Lon: " + parts[4]);
+                        Console.WriteLine("Course: " + parts[6] + " | Speed: " + parts[8] + " | Altitude: " + parts[10]);
+                        break;
 
-                case "DELAY":
-                    await Task.Delay(TimeSpan.FromSeconds(double.Parse(parts[1])));
-                    break;
+                    case "DELAY":
+                        await Task.Delay(TimeSpan.FromSeconds(double.Parse(parts[1])));
+                        break;
+
+                    default:
+                        Console.WriteLine("Something went wrong!");
+                        break;
+                }
+            }
+            catch (Exception exc)
+            {
+                Console.WriteLine(exc.StackTrace);
             }
         }
 
