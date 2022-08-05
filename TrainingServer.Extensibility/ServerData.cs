@@ -7,12 +7,14 @@ namespace TrainingServer
 		/// <summary>The network callsign of <see langword="this"/> <see cref="IAircraft"/>.</summary>
 		string Callsign { get; }
 
+		Flightplan Flightplan { get; }
+
 		/// <summary>The current position of the aircraft on the WGS84 spheroid.</summary>
 		Coordinate Position { get; }
-		
+
 		/// <summary>The present course in degrees true of <see langword="this"/> <see cref="IAircraft"/>.</summary>
 		float TrueCourse { get; }
-		
+
 		/// <summary>The groundspeed in knots of <see langword="this"/> <see cref="IAircraft"/>.</summary>
 		uint GroundSpeed { get; }
 
@@ -66,12 +68,36 @@ namespace TrainingServer
 
 	public interface IServer
 	{
-		bool SpawnAircraft(string callsign, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
+		bool SpawnAircraft(string callsign, Flightplan flightplan, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
 	}
 
 	public struct Coordinate
 	{
 		public double Latitude { get; set; }
 		public double Longitude { get; set; }
+	}
+
+	public struct Flightplan
+	{
+		public char FlightRules { get; set; }
+		public char TypeOfFlight { get; set; }
+		public string AircraftType { get; set; }
+		public string CruiseSpeed { get; set; }
+		public string DepartureAirport { get; set; }
+		public DateTime EstimatedDeparture { get; set; }
+		public DateTime ActualDeparture { get; set; }
+		public string CruiseAlt { get; set; }
+		public string ArrivalAirport { get; set; }
+		public uint HoursEnRoute { get; set; }
+		public uint MinutesEnRoute { get; set; }
+		public uint HoursFuel { get; set; }
+		public uint MinutesFuel { get; set; }
+		public string AlternateAirport { get; set; }
+		public string Remarks { get; set; }
+		public string Route { get; set; }
+
+		public Flightplan(char flightRules, char typeOfFlight, string aircraftType, string cruiseSpeed, string departureAirport, DateTime estimatedDeparture, DateTime actualDeparture, string cruiseAlt, string arrivalAirport, uint hoursEnRoute, uint minutesEnRoute, uint hoursFuel, uint minutesFuel, string alternateAirport, string remarks, string route) =>
+			(FlightRules, TypeOfFlight, AircraftType, CruiseSpeed, DepartureAirport, EstimatedDeparture, ActualDeparture, CruiseAlt, ArrivalAirport, HoursEnRoute, MinutesEnRoute, HoursFuel, MinutesFuel, AlternateAirport, Remarks, Route) =
+			(flightRules, typeOfFlight, aircraftType, cruiseSpeed, departureAirport, estimatedDeparture, actualDeparture, cruiseAlt, arrivalAirport, hoursEnRoute, minutesEnRoute, hoursFuel, minutesFuel, alternateAirport, remarks, route);
 	}
 }
