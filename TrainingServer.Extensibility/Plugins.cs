@@ -27,10 +27,10 @@ namespace TrainingServer.Extensibility
 		string FriendlyName { get; }
 		string Maintainer { get; }
 
-		/// <summary>Invoked when an <see cref="IAircraft"/> is sent a message by a controller either over frequency or PM to check if the plugin should handle it.</summary>
+		/// <summary>Invoked when the server is sent a message by a controller over the server frequency to check if the plugin should handle it.</summary>
 		/// <param name="sender">The callsign of the message sender.</param>
 		/// <param name="message">The message that was sent.</param>
-		/// <returns><see langword="true"/> if <see langword="this"/> <see cref="IPlugin"/> wishes to handle the message, otherwise <see langword="false"/> to pass it to other plugins.</returns>
+		/// <returns><see langword="true"/> if <see langword="this"/> <see cref="IServerPlugin"/> wishes to handle the message, otherwise <see langword="false"/> to pass it to other plugins.</returns>
 		bool CheckIntercept(string sender, string message);
 
 		/// <summary>Invoked after <see cref="CheckIntercept(string, string)"/> returns true to handle the message.</summary>
