@@ -29,7 +29,6 @@ public class Plugin : IServerPlugin
 
         foreach (string command in File.ReadAllLines(path).Select(l => l.Trim()).Where(l => !string.IsNullOrEmpty(l)))
         {
-            Console.WriteLine(command + " | DEBUG LINE");
             string[] parts = command.Split();
             try {
                 switch (parts[0].ToUpper())
@@ -44,8 +43,6 @@ public class Plugin : IServerPlugin
                             uint.Parse(parts[8]),
                             int.Parse(parts[10])
                         );
-                        Console.WriteLine("Lat: " + parts[3] + " | Lon: " + parts[4]);
-                        Console.WriteLine("Course: " + parts[6] + " | Speed: " + parts[8] + " | Altitude: " + parts[10]);
                         break;
 
                     case "DELAY":
