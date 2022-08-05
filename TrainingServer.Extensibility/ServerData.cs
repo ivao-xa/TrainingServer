@@ -68,7 +68,7 @@ namespace TrainingServer
 
 	public interface IServer
 	{
-		bool SpawnAircraft(string callsign, Flightplan flightplan, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
+		IAircraft? SpawnAircraft(string callsign, Flightplan flightplan, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
 	}
 
 	public struct Coordinate
