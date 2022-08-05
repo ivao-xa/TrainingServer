@@ -98,7 +98,7 @@ public class Plugin : IServerPlugin
 
 		heading ??= 180f; speed ??= 100; altitude ??= 100;
 
-		if (server.SpawnAircraft(callsign, new() { Latitude = position.Value.Lat, Longitude = position.Value.Lon }, heading.Value, speed.Value, altitude.Value))
+		if (server.SpawnAircraft(callsign, new('?', '?', "1/UNKN/?-?/?", "N????", "????", new(), new(), "F???", "????", 0, 0, 0, 0, "????", "RMK/PLUGIN GENERATED AIRCRAFT. FLIGHT PLAN MAY BE INACCURATE.", "DCT"), new() { Latitude = position.Value.Lat, Longitude = position.Value.Lon }, heading.Value, speed.Value, altitude.Value))
 			return $"Spawned aircraft {callsign}.";
 		else
 			return $"Aicraft with callsign {callsign} already exists. Spawning failed.";
