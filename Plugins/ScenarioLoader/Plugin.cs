@@ -37,9 +37,14 @@ public class Plugin : IServerPlugin
             return "A scenario is already running.";
 
         string path = string.Join(' ', message.ToLower().Trim().Split()[1..]);
-        executingTask = Task.Run(async () => await ExecuteFileAsync(server, path));
+        if (!File.Exists(path))
+            return $"File {path} not found.";
+        else
+        {
+            executingTask = Task.Run(async () => await ExecuteFileAsync(server, path));
 
-        return "Scenario loaded successfully.";
+            return "Scenario loaded successfully.";
+        }
     }
 
     private bool isRunning = false;
@@ -55,7 +60,6 @@ public class Plugin : IServerPlugin
                 switch (parts[0].ToUpper())
                 {
                     case "SPAWN":
-                        Console.WriteLine("Creating aircraft: " + parts[1]);
                         IAircraft? aircraft = server.SpawnAircraft(
                             parts[1],
                             new('I', 'S', "1/A320/M-SDG/LB1", "N450", "LJLJ", new(), new(), "F320", "LJMB", 0, 0, 0, 0, "????", "RMK/PLUGIN GENERATED AIRCRAFT. FLIGHT PLAN MAY BE INACCURATE.", "DCT"),
@@ -68,16 +72,20 @@ public class Plugin : IServerPlugin
                         if (aircraft is not null)
                             _aircraft.Add(parts[1], aircraft);
 
+                        Console.WriteLine($"{ DateTime.Now:HH:mm:ss:ff} | Created aircraft | " + parts[1]);
                         break;
 
                     case "DELAY":
+                        Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | DELAY | {parts[1]}s");
                         await Task.Delay(TimeSpan.FromSeconds(double.Parse(parts[1])));
+                        Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | Resuming scenario...");
                         break;
 
                     case "DIEALL":
                         foreach (IAircraft a in _aircraft.Values)
                             a.Kill();
                         _aircraft.Clear();
+                        Console.WriteLine($"{ DateTime.Now:HH:mm:ss:ff} | All aircraft destroyed.");
                         break;
 
                     case not null when parts.Length > 2 && _aircraft.ContainsKey(parts[0]) && int.TryParse(parts[2], out int val):
@@ -89,23 +97,29 @@ public class Plugin : IServerPlugin
                         {
                             case "FH":
                                 ac.TurnCourse(val);
+                                Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | {parts[0]} | FLY HEADING | H{val}");
                                 break;
                             case "C":
                                 ac.RestrictAltitude(val * 100, val * 100, 1500);
+                                Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | {parts[0]} | CLIMB TO | F{val}");
                                 break;
                             case "D":
                                 ac.RestrictAltitude(val * 100, val * 100, 1000);
+                                Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | {parts[0]} | DESCEND TO | F{val}");
                                 break;
                             case "SPD" when val >= 0:
                                 ac.RestrictSpeed((uint)val, (uint)val, ac.GroundSpeed > (uint)val ? 2.5f : 5f);
+                                Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | {parts[0]} | SPEED | N{val}");
                                 break;
                             case "SQK" when val is >= 0 and <= 7700:
                             case "SQ" when val is >= 0 and <= 7700:
                                 ac.Squawk = (ushort)val;
+                                Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | {parts[0]} | SQUAWK | {val}");
                                 break;
                             case "DIE":
                                 ac.Kill();
                                 _aircraft.Remove(parts[0]);
+                                Console.WriteLine($"{ DateTime.Now:HH: mm: ss: ff} | {parts[0]} | DIE");
                                 break;
                         }
 
