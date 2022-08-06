@@ -1,22 +1,24 @@
-# Scenario Loader
+# Simple Aircraft Spawner
 
-Spawns a set of aircraft defined in a scenario file with a callsign at a given GPS coordinate, optionally with a starting true course, ground speed, and altitude MSL.  
+Spawns an aircraft with a callsign at a given GPS coordinate, optionally with a starting true course, ground speed, and altitude MSL.  
 
 The command must be sent on the server frequency (123.450 MHz) and be of the following form:
 ```
-LOAD <file_name>
+<callsign> AT <lat> <lon> HDG <heading> SPD <speed> ALT <alt>
 ```
-Note, the scenario file has to be loaded onto the server.
+where `HDG`, `SPD`, and `ALT` are optional.  
 
-## Scenario File Structure
-The scenario file can, at the moment, include **two** commands:
+For example, consider the following commands. All are valid:
 ```
-SPAWN - spawns an aircraft with the given parameters.
-DELAY - delays the next spawn for a given time
+N862SL AT 33.80741457;-118.34437255;
+N862SL AT 33.80741457 -118.34437255
+N862SL AT 33.80741457/-118.34437255
+N862SL AT 33.80741457;-118.34437255; ALT 050
+N862SL AT 33.80741457 -118.34437255 HDG 180 ALT 050
+N862SL AT 33.80741457 -118.34437255 HDG 180 SPD 100
+N862SL AT 33.80741457 -118.34437255 SPD 100 ALT 050
+N862SL AT 33.80741457 -118.34437255 SPD 100
 ```
-
-If you want to know how to spawn an aircraft, you can check the [official repository](https://github.com/ivao-xa/TrainingServer/tree/main/Plugins/SpawnAircraft/README.md)
-
 
 The ordering is important. The following commands are **invalid**:
 ```
