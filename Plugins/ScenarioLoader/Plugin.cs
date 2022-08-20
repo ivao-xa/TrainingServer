@@ -60,17 +60,52 @@ public class Plugin : IServerPlugin
                 switch (parts[0].ToUpper())
                 {
                     case "SPAWN":
-                        IAircraft? aircraft = server.SpawnAircraft(
-                            parts[1],
-                            new('I', 'S', "1/A320/M-SDG/LB1", "N450", "LJLJ", new(), new(), "F320", "LJMB", 0, 0, 0, 0, "????", "RMK/PLUGIN GENERATED AIRCRAFT. FLIGHT PLAN MAY BE INACCURATE.", "DCT"),
-                            new() { Latitude = double.Parse(parts[3]), Longitude = double.Parse(parts[4]) },
-                            float.Parse(parts[6]),
-                            uint.Parse(parts[8]),
-                            int.Parse(parts[10]) * 100
-                        );
 
-                        if (aircraft is not null)
-                            _aircraft.Add(parts[1], aircraft);
+                        if (parts.Length > 11)
+                        {
+                            string joined = string.Join(' ', parts);
+
+                            string[] split_flight = joined.Split(';');
+
+                            foreach (string str in split_flight) {
+
+                                Console.WriteLine(str + '\n');
+                            }
+
+                            string[] spawn_data = split_flight[0].Split(' ');
+                            string flightdata_joined = split_flight[1];
+                            string remarks = split_flight[2];
+                            string route = split_flight[3];
+
+                            string[] flightdata = flightdata_joined.Split(' ');
+
+                            IAircraft? aircraft = server.SpawnAircraft(
+                                                        parts[1],
+                                                        new(char.Parse(flightdata[0]), char.Parse(flightdata[1]), flightdata[2], flightdata[3], flightdata[4], new(), new(), flightdata[7], flightdata[8], 0, 0, 0, 0, "NONE", remarks, route),
+                                                        new() { Latitude = double.Parse(spawn_data[3]), Longitude = double.Parse(spawn_data[4]) },
+                                                        float.Parse(spawn_data[6]),
+                                                        uint.Parse(spawn_data[8]),
+                                                        int.Parse(spawn_data[10]) * 100
+                                                    );
+
+                            if (aircraft is not null)
+                                _aircraft.Add(spawn_data[1], aircraft);
+                        }
+                        else
+                        {
+                            IAircraft? aircraft = server.SpawnAircraft(
+                                                        parts[1],
+                                                        new('I', 'S', "1/A320/M-SDG/LB1", "N450", "LJLJ", new(), new(), "F320", "LJMB", 0, 0, 0, 0, "????", "RMK/PLUGIN GENERATED AIRCRAFT. FLIGHT PLAN MAY BE INACCURATE.", "DCT"),
+                                                        new() { Latitude = double.Parse(parts[3]), Longitude = double.Parse(parts[4]) },
+                                                        float.Parse(parts[6]),
+                                                        uint.Parse(parts[8]),
+                                                        int.Parse(parts[10]) * 100
+                                                    );
+
+                            if (aircraft is not null)
+                                _aircraft.Add(parts[1], aircraft);
+                        }
+
 
                         Console.WriteLine($"{ DateTime.Now:HH:mm:ss:ff} | Created aircraft | " + parts[1]);
                         break;
