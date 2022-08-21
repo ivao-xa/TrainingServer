@@ -30,10 +30,11 @@ public class Plugin : IServerPlugin
             try
             {
                 executingTask?.Wait(1);
-            } catch { }
+            }
+            catch { }
             return "Scenario unloaded successfully.";
         }
-        else if (isRunning) 
+        else if (isRunning)
             return "A scenario is already running.";
 
         string path = string.Join(' ', message.ToLower().Trim().Split()[1..]);
@@ -41,7 +42,7 @@ public class Plugin : IServerPlugin
             return $"File {path} not found.";
         else
         {
-            executingTask = Task.Run(async () => await ExecuteFileAsync(server, path));
+            executingTask = ExecuteFileAsync(server, path);
 
             return "Scenario loaded successfully.";
         }
@@ -56,7 +57,8 @@ public class Plugin : IServerPlugin
         foreach (string command in File.ReadAllLines(path).Select(l => l.Trim()).Where(l => !string.IsNullOrEmpty(l)))
         {
             string[] parts = command.Split();
-            try {
+            try
+            {
                 switch (parts[0].ToUpper())
                 {
                     case "SPAWN":
@@ -65,31 +67,35 @@ public class Plugin : IServerPlugin
                         {
                             string joined = string.Join(' ', parts);
 
-                            string[] split_flight = joined.Split(';');
+                            string[] splitFlight = joined.Split(';');
 
-                            foreach (string str in split_flight) {
+                            string[] spawnData = splitFlight[0].Split(' ');
+                            string flightdataJoined = splitFlight[1];
+                            string remarks = splitFlight[2];
+                            string route = splitFlight[3];
 
-                                Console.WriteLine(str + '\n');
-                            }
+                            string[] flightData = flightdataJoined.Split(' ');
 
-                            string[] spawn_data = split_flight[0].Split(' ');
-                            string flightdata_joined = split_flight[1];
-                            string remarks = split_flight[2];
-                            string route = split_flight[3];
-
-                            string[] flightdata = flightdata_joined.Split(' ');
-
-                            IAircraft? aircraft = server.SpawnAircraft(
+                            if (flightData[0].Length == 1 && flightData[1].Length == 1)
+                            {
+                                IAircraft? aircraft = server.SpawnAircraft(
                                                         parts[1],
-                                                        new(char.Parse(flightdata[0]), char.Parse(flightdata[1]), flightdata[2], flightdata[3], flightdata[4], new(), new(), flightdata[7], flightdata[8], 0, 0, 0, 0, "NONE", remarks, route),
-                                                        new() { Latitude = double.Parse(spawn_data[3]), Longitude = double.Parse(spawn_data[4]) },
-                                                        float.Parse(spawn_data[6]),
-                                                        uint.Parse(spawn_data[8]),
-                                                        int.Parse(spawn_data[10]) * 100
+                                                        new(flightData[0].Single(), flightData[1].Single(), flightData[2], flightData[3], flightData[4], new(), new(), flightData[7], flightData[8], 0, 0, 0, 0, "ZZZZ", remarks, route),
+                                                        new() { Latitude = double.Parse(spawnData[3]), Longitude = double.Parse(spawnData[4]) },
+                                                        float.Parse(spawnData[6]),
+                                                        uint.Parse(spawnData[8]),
+                                                        int.Parse(spawnData[10]) * 100
                                                     );
 
-                            if (aircraft is not null)
-                                _aircraft.Add(spawn_data[1], aircraft);
+                                if (aircraft is not null)
+                                    _aircraft.Add(spawnData[1], aircraft);
+                                Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | Created aircraft | " + parts[1]);
+
+                            }
+                            else
+                            {
+                                Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | FPL params wrong | {parts[1]}");
+                            }
                         }
                         else
                         {
@@ -104,10 +110,11 @@ public class Plugin : IServerPlugin
 
                             if (aircraft is not null)
                                 _aircraft.Add(parts[1], aircraft);
+                            Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | Created aircraft | " + parts[1]);
+
                         }
 
 
-                        Console.WriteLine($"{ DateTime.Now:HH:mm:ss:ff} | Created aircraft | " + parts[1]);
                         break;
 
                     case "DELAY":
@@ -120,11 +127,11 @@ public class Plugin : IServerPlugin
                         foreach (IAircraft a in _aircraft.Values)
                             a.Kill();
                         _aircraft.Clear();
-                        Console.WriteLine($"{ DateTime.Now:HH:mm:ss:ff} | All aircraft destroyed.");
+                        Console.WriteLine($"{DateTime.Now:HH:mm:ss:ff} | All aircraft destroyed.");
                         break;
 
                     case not null when parts.Length > 2 && _aircraft.ContainsKey(parts[0]) && int.TryParse(parts[2], out int val):
-                        
+
                         IAircraft ac = _aircraft[parts[0]];
                         string instruction = parts[1];
 
@@ -154,7 +161,7 @@ public class Plugin : IServerPlugin
                             case "DIE":
                                 ac.Kill();
                                 _aircraft.Remove(parts[0]);
-                                Console.WriteLine($"{ DateTime.Now:HH: mm: ss: ff} | {parts[0]} | DIE");
+                                Console.WriteLine($"{DateTime.Now:HH: mm: ss: ff} | {parts[0]} | DIE");
                                 break;
                         }
 
