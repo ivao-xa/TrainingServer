@@ -6,7 +6,7 @@ The command must be sent on the server frequency (123.450 MHz) and be of the fol
 ```
 <callsign> AT <lat> <lon> HDG <heading> SPD <speed> ALT <alt> RTE <lat1>/<lon1> <lat2>/<lon2> …
 ```
-where `HDG`, `SPD`, `ALT`, and `RTE` are optional.
+where `HDG`, `SPD`, `ALT`, and `RTE` are optional.  
 
 For example, consider the following commands. All are valid:
 ```
