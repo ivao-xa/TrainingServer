@@ -24,6 +24,9 @@ namespace TrainingServer
 		/// <summary>The current squawk code of <see langword="this"/> <see cref="IAircraft"/>.</summary>
 		ushort Squawk { get; set; }
 
+		/// <summary><see langword="true"/> if <see langword="this"/> <see cref="IAircraft"/> is paused, otherwise <see langword="false"/>.</summary>
+		bool Paused { get; set; }
+
 		/// <summary>Turns to face a certain course.</summary>
 		/// <param name="trueCourse">The course in degrees true to turn to.</param>
 		/// <param name="turnRate">The turn rate in degrees per second.</param>
