@@ -18,7 +18,8 @@ public class Plugin : IServerPlugin
 	private readonly Regex _spawnHeader,
 						   _heading,
 						   _speed,
-						   _altitude;
+						   _altitude,
+						   _route;
 
 	public Plugin()
 	{
@@ -27,10 +28,11 @@ public class Plugin : IServerPlugin
 			@"(?<callsign>\w+)\s+AT\s*(?<lat>[+-]?\d+(\.\d+)?)[ /;](?<lon>[+-]?\d+(\.\d+)?);?",
 			@"HDG\s*(?<heading>\d+(.\d+)?)",
 			@"SPD\s*(?<speed>\d+)",
-			@"ALT\s*(?<altitude>-?\d+)"
+			@"ALT\s*(?<altitude>-?\d+)",
+			@"RTE(?<route>(\s+[+-]?\d+(\.\d+)?/[+-]?\d+(\.\d+)?)+)"
 		};
 
-		if (File.Exists("spawner.re") && File.ReadAllLines("spawner.re").Length >= 4)
+		if (File.Exists("spawner.re") && File.ReadAllLines("spawner.re").Length >= 5)
 			regexes = File.ReadAllLines("spawner.re").Select(l => l.Trim()).ToArray();
 		else
 			File.WriteAllLines("spawner.re", regexes);
@@ -40,17 +42,19 @@ public class Plugin : IServerPlugin
 		_heading = new($"^{regexes[1]}", rxo);
 		_speed = new($"^{regexes[2]}", rxo);
 		_altitude = new($"^{regexes[3]}", rxo);
+		_route = new($"^{regexes[4]}", rxo);
 	}
 
-	public bool CheckIntercept(string _, string message) => TryParse(message, out var _1, out var _2, out var _3, out var _4, out var _5);
+	public bool CheckIntercept(string _, string message) => TryParse(message, out var _1, out var _2, out var _3, out var _4, out var _5, out var _6);
 
-	private bool TryParse(string message, [NotNullWhen(true)] out string? callsign, [NotNullWhen(true)] out (double Lat, double Lon)? position, out float? heading, out uint? speed, out int? altitude)
+	private bool TryParse(string message, [NotNullWhen(true)] out string? callsign, [NotNullWhen(true)] out (double Lat, double Lon)? position, out float? heading, out uint? speed, out int? altitude, out string[]? route)
 	{
 		callsign = null;
 		position = null;
 		heading = null;
 		speed = null;
 		altitude = null;
+		route = null;
 
 		var match = _spawnHeader.Match(message);
 		if (!match.Success)
@@ -61,7 +65,7 @@ public class Plugin : IServerPlugin
 		callsign = match.Groups["callsign"].Value;
 		position = (double.Parse(match.Groups["lat"].Value), double.Parse(match.Groups["lon"].Value));
 
-		while (_altitude.IsMatch(message) || _heading.IsMatch(message) || _speed.IsMatch(message))
+		while (_altitude.IsMatch(message) || _heading.IsMatch(message) || _speed.IsMatch(message) || _route.IsMatch(message))
 		{
 			match = _altitude.Match(message);
 			if (match.Success)
@@ -86,6 +90,14 @@ public class Plugin : IServerPlugin
 				message = message[match.Length..].TrimStart();
 				continue;
 			}
+
+			match = _route.Match(message);
+			if (match.Success)
+			{
+				route = match.Groups["route"].Value.Split(Array.Empty<char>(), StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+				message = message[match.Length..].TrimStart();
+				continue;
+			}
 		}
 
 		return string.IsNullOrWhiteSpace(message);
@@ -93,7 +105,7 @@ public class Plugin : IServerPlugin
 
 	public string? MessageReceived(IServer server, string sender, string message)
 	{
-		if (!TryParse(message, out string? callsign, out (double Lat, double Lon)? position, out float? heading, out uint? speed, out int? altitude))
+		if (!TryParse(message, out string? callsign, out (double Lat, double Lon)? position, out float? heading, out uint? speed, out int? altitude, out string[]? route))
 			throw new ArgumentException("Message was not a valid command", nameof(message));
 
 		heading ??= 180f; speed ??= 100; altitude ??= 100;
@@ -101,12 +113,21 @@ public class Plugin : IServerPlugin
 		if (
 			server.SpawnAircraft(
 				callsign,
-				new('?', '?', "1/UNKN/?-?/?", "N????", "????", new(), new(), "F???", "????", 0, 0, 0, 0, "????", "RMK/PLUGIN GENERATED AIRCRAFT. FLIGHT PLAN MAY BE INACCURATE.", "DCT"),
+				new('?', '?', "1/UNKN/?-?/?", "N????", "????", new(), new(), "F???", "????", 0, 0, 0, 0, "????", "RMK/PLUGIN GENERATED AIRCRAFT. FLIGHT PLAN MAY BE INACCURATE.", string.Join(' ', route ?? new[] { "DCT" })),
 				new() { Latitude = position.Value.Lat, Longitude = position.Value.Lon },
 				heading.Value, speed.Value, altitude.Value
-			) is not null
+			) is IAircraft ac
 		)
+		{
+			if (route is not null)
+				foreach (string wp in route)
+				{
+					string[] elems = wp.Split('/');
+					ac.FlyDirect(new() { Latitude = double.Parse(elems[0]), Longitude = double.Parse(elems[1]) });
+				}
+
 			return $"Spawned aircraft {callsign}.";
+		}
 		else
 			return $"Aicraft with callsign {callsign} already exists. Spawning failed.";
 	}
