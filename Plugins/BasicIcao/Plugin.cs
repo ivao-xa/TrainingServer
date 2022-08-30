@@ -87,7 +87,6 @@ public class Plugin : IPlugin
 
 	public bool CheckIntercept(string aircraftCallsign, string sender, string message) =>
 		message.Trim().Equals("DIE", StringComparison.InvariantCultureIgnoreCase) || TryBreakUp(message, out _, out _);
-	
 
 	public string? MessageReceived(IAircraft aircraft, string sender, string message)
 	{
@@ -96,7 +95,6 @@ public class Plugin : IPlugin
 			aircraft.Kill();
 			return "Goodbye!";
 		}
-
 
 		_ = TryBreakUp(message, out object[] fragments, out ushort? squawk);
 		List<string> msgBacks = new();
