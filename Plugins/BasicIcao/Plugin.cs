@@ -86,9 +86,7 @@ public class Plugin : IPlugin
 	}
 
 	public bool CheckIntercept(string aircraftCallsign, string sender, string message) =>
-		message.Trim().Equals("DIE", StringComparison.InvariantCultureIgnoreCase) || 
-		message.Trim().Equals("FREEZE", StringComparison.InvariantCultureIgnoreCase) ||
-		TryBreakUp(message, out _, out _);
+		message.Trim().Equals("DIE", StringComparison.InvariantCultureIgnoreCase) || TryBreakUp(message, out _, out _);
 	
 
 	public string? MessageReceived(IAircraft aircraft, string sender, string message)
@@ -99,16 +97,6 @@ public class Plugin : IPlugin
 			return "Goodbye!";
 		}
 
-		if (message.Trim().Equals("FREEZE", StringComparison.InvariantCultureIgnoreCase))
-		{
-			try { 
-				aircraft.Paused = !aircraft.Paused;
-				return (aircraft.Paused ? "Aircraft freezed" : "Aircraft unfreezed");
-			} catch { 
-				System.Diagnostics.Debug.WriteLine("Error freezing ->" + aircraft.Callsign); 
-			}
-
-		}
 
 		_ = TryBreakUp(message, out object[] fragments, out ushort? squawk);
 		List<string> msgBacks = new();

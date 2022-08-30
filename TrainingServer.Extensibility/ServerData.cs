@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace TrainingServer
 {
@@ -72,6 +73,8 @@ namespace TrainingServer
 	public interface IServer
 	{
 		IAircraft? SpawnAircraft(string callsign, Flightplan flightplan, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
+
+		List<string> aircraft_list = new List<string>();
 	}
 
 	public struct Coordinate
