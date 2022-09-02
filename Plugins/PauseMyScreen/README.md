@@ -2,7 +2,7 @@
 
 Simple plugin to freeze the current traffic scene
 
-The command must be sent by PM to the traffic:
+The command must be sent by PM or any frequency to the traffic:
 ```
 FREEZE
 ```
