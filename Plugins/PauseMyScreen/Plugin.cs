@@ -35,18 +35,23 @@ public class Plugin : IPlugin
 	}
 
 	private bool CheckMessage(string message, out string? command) 
-    {
-		if (_pause.IsMatch(message)) {
+	{
+		if (_pause.IsMatch(message))
+		{
 			command = "pause";
 			return true;
-        } else if (_resume.IsMatch(message)) {
+		}
+		else if (_resume.IsMatch(message))
+		{
 			command = "resume";
 			return true;
-        } else {
-            command = null;
-            return false;
-        }
-    }
+		}
+		else
+		{
+			command = null;
+			return false;
+		}
+	}
 
 	public bool CheckIntercept(string aircraftCallsign, string sender, string message) =>
 		CheckMessage(message, out _);
