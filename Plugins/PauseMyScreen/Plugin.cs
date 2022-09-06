@@ -21,17 +21,17 @@ public class Plugin : IPlugin
 
 		string[] regexes = new[]
 		{
-			@"PAUSE$",
-			@"RESUME$"
-		};
+            @"^PAUSE$",
+            @"^RESUME$"
+        };
 
 		if (File.Exists("PauseMyScreenCommands.re") && File.ReadAllLines("PauseMyScreenCommands.re").Length >= 1)
 			regexes = File.ReadAllLines("PauseMyScreenCommands.re");
 		else
 			File.WriteAllLines("PauseMyScreenCommands.re", regexes);
 
-		_pause = new(regexes[0], RegexOptions.IgnoreCase);
-		_resume= new(regexes[1], RegexOptions.IgnoreCase);
+		_pause = new(regexes[0], RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+		_resume= new(regexes[1], RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 	}
 
 	private bool CheckMessage(string message, out string? command) 
