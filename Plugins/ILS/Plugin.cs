@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.ConstrainedExecution;
 using System.Text.RegularExpressions;
 using TrainingServer;
 using TrainingServer.Extensibility;
@@ -95,7 +93,7 @@ public class Plugin: IPlugin {
     }
 
     public string ? MessageReceived(IAircraft aircraft, string sender, string message) {
-
+        System.Diagnostics.Debug.WriteLine("PENE");
         double rwy_offset;
         (double, double) temp_point = (aircraft.Position.Latitude, aircraft.Position.Longitude);
 
@@ -118,22 +116,32 @@ public class Plugin: IPlugin {
 
         this.target = float.Parse(match.Groups["hdg"].Value);
 
-        // 0 degree fix
-        if (acft_hdg + 90 < this.target)
-            acft_hdg += 360;
-        else if (this.target + 90 < acft_hdg)
-            this.target += 360;
+        double relative, temp_acft_hdg, temp_rwy_hdg;
+        relative = brng_from_vec(points[0].Item1, points[0].Item2, rwy_point[0], rwy_point[1]);
+        temp_rwy_hdg = this.target;
+        temp_acft_hdg = acft_hdg;
 
-        if ((acft_hdg > brng_from_vec(points[0].Item1, points[0].Item2, rwy_point[0], rwy_point[1])) && brng_from_vec(points[0].Item1, points[0].Item2, rwy_point[0], rwy_point[1]) > this.target)
+        // 0 degree fix
+        if (temp_acft_hdg + 90 < temp_rwy_hdg)
+        {
+            temp_acft_hdg += 360;
+        }
+        else if (temp_rwy_hdg + 90 < temp_acft_hdg)
+        {
+            temp_rwy_hdg += 360;
+            relative += 360;
+        }
+
+        if ((temp_acft_hdg > relative) && (relative > temp_rwy_hdg))
             turn_dir = 'L';
-        else if ((acft_hdg < brng_from_vec(points[0].Item1, points[0].Item2, rwy_point[0], rwy_point[1])) && brng_from_vec(points[0].Item1, points[0].Item2, rwy_point[0], rwy_point[1]) < this.target)
+        else if ((temp_acft_hdg < relative) && (relative < temp_rwy_hdg))
             turn_dir = 'R';
         else
             return "Already passed the loc";
 
         // PID
         for (int i = 0; i < 1000; i++) {
-            rwy_offset = brng_from_vec(points[points.Count - 1].Item1, points[points.Count - 1].Item2, rwy_point[0], rwy_point[1]);
+            rwy_offset = brng_from_vec(points[points.Count - 1].Item1, points[points.Count -  1].Item2, rwy_point[0], rwy_point[1]);
 
             acft_hdg = this.turn(this.controller(rwy_offset) + acft_hdg, init_hdg, turn_dir);
 
@@ -156,6 +164,7 @@ public class Plugin: IPlugin {
             }
 
         }
+
 
         for (int i = 1; i < points.Count; i++) // i starts in 1 to avoid first point at acft position
             aircraft.FlyDirect(new() {
