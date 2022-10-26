@@ -4,27 +4,30 @@ using TrainingServer.Extensibility;
 
 namespace ILS;
 
-public class Plugin: IPlugin {
-    #if DEBUG
+public class Plugin : IPlugin
+{
+#if DEBUG
     public string FriendlyName => "ILS (DEBUG)";
-    #else
+#else
     public string FriendlyName => "ILS";
-    #endif
+#endif
     public string Maintainer => "Alvaro (519820)";
 
 
     private readonly Regex _ils;
 
-    public Plugin() {
+    public Plugin()
+    {
 
-        string[] regexes = new [] {
+        string[] regexes = new[] {
             @"ILS\s(?<lat>[+-]?\d+(\.\d+)?)[ /;](?<lon>[+-]?\d+(\.\d+)?);?\s*(?<hdg>\d+(.\d+)?)",
         };
 
         _ils = new(regexes[0], RegexOptions.IgnoreCase);
     }
 
-    public bool CheckIntercept(string aircraftCallsign, string sender, string message) {
+    public bool CheckIntercept(string aircraftCallsign, string sender, string message)
+    {
         return _ils.IsMatch(message);
     }
 
@@ -36,9 +39,10 @@ public class Plugin: IPlugin {
     const double kp = 2.5;
     const double ki = 0.16;
     const double kd = 0.05;
-    
 
-    public double controller(double pos) {
+
+    public double controller(double pos)
+    {
         double error = pos - target;
 
         this.integral_error += error * DIST_STEP;
@@ -49,7 +53,8 @@ public class Plugin: IPlugin {
         return output;
     }
 
-    private double brng_from_vec(double lat1, double lon1, double lat2, double lon2) {
+    private double brng_from_vec(double lat1, double lon1, double lat2, double lon2)
+    {
         double lat1_rad = lat1 * Math.PI / 180;
         double lat2_rad = lat2 * Math.PI / 180;
         double delta1 = (lat2 - lat1) * Math.PI / 180;
@@ -63,7 +68,8 @@ public class Plugin: IPlugin {
         return brng < 0 ? brng + 360 : brng;
     }
 
-    private(double, double) plant(double hdg1, double lat1, double lon1, double d) {
+    private (double, double) plant(double hdg1, double lat1, double lon1, double d)
+    {
         // Convert all to radians
         lat1 = lat1 * Math.PI / 180;
         lon1 = lon1 * Math.PI / 180;
@@ -82,17 +88,22 @@ public class Plugin: IPlugin {
         return (lat, lon);
     }
 
-    private double turn(double hdg, double init_hdg, char turn_dir) {
-        if ((hdg > init_hdg) && (turn_dir == 'L')) {
+    private double turn(double hdg, double init_hdg, char turn_dir)
+    {
+        if ((hdg > init_hdg) && (turn_dir == 'L'))
+        {
             return init_hdg;
-        } else if ((hdg < init_hdg) && (turn_dir == 'R')) {
+        }
+        else if ((hdg < init_hdg) && (turn_dir == 'R'))
+        {
             return init_hdg;
         }
 
         return hdg;
     }
 
-    public string ? MessageReceived(IAircraft aircraft, string sender, string message) {
+    public string? MessageReceived(IAircraft aircraft, string sender, string message)
+    {
         System.Diagnostics.Debug.WriteLine("PENE");
         double rwy_offset;
         (double, double) temp_point = (aircraft.Position.Latitude, aircraft.Position.Longitude);
@@ -104,7 +115,7 @@ public class Plugin: IPlugin {
         double acft_hdg = aircraft.TrueCourse;
         double init_hdg = acft_hdg;
 
-        List < (double, double) > points = new List < (double, double) > ();
+        List<(double, double)> points = new List<(double, double)>();
         points.Add((aircraft.Position.Latitude, aircraft.Position.Longitude));
 
         Match match = _ils.Match(message);
@@ -140,8 +151,9 @@ public class Plugin: IPlugin {
             return "Already passed the loc";
 
         // PID
-        for (int i = 0; i < 1000; i++) {
-            rwy_offset = brng_from_vec(points[points.Count - 1].Item1, points[points.Count -  1].Item2, rwy_point[0], rwy_point[1]);
+        for (int i = 0; i < 1000; i++)
+        {
+            rwy_offset = brng_from_vec(points[points.Count - 1].Item1, points[points.Count - 1].Item2, rwy_point[0], rwy_point[1]);
 
             acft_hdg = this.turn(this.controller(rwy_offset) + acft_hdg, init_hdg, turn_dir);
 
@@ -149,16 +161,25 @@ public class Plugin: IPlugin {
 
             points.Add(temp_point);
 
-            if (first) {
+            if (first)
+            {
                 first = false;
-            } else {
-                if (Math.Abs(brng_from_vec(points[points.Count - 1].Item1, points[points.Count - 1].Item2, rwy_point[0], rwy_point[1]) - this.target) < 0.2) {
-                    if (additional == 0) {
+            }
+            else
+            {
+                if (Math.Abs(brng_from_vec(points[points.Count - 1].Item1, points[points.Count - 1].Item2, rwy_point[0], rwy_point[1]) - this.target) < 0.2)
+                {
+                    if (additional == 0)
+                    {
                         break;
-                    } else {
+                    }
+                    else
+                    {
                         additional = additional - 1;
                     }
-                } else if (Math.Abs(brng_from_vec(points[points.Count - 3].Item1, points[points.Count - 3].Item2, points[points.Count - 2].Item1, points[points.Count - 2].Item2) - brng_from_vec(points[points.Count - 2].Item1, points[points.Count - 2].Item2, points[points.Count - 1].Item1, points[points.Count - 1].Item2)) < 1) {
+                }
+                else if (Math.Abs(brng_from_vec(points[points.Count - 3].Item1, points[points.Count - 3].Item2, points[points.Count - 2].Item1, points[points.Count - 2].Item2) - brng_from_vec(points[points.Count - 2].Item1, points[points.Count - 2].Item2, points[points.Count - 1].Item1, points[points.Count - 1].Item2)) < 1)
+                {
                     points.RemoveAt(points.Count - 2);
                 }
             }
@@ -167,13 +188,14 @@ public class Plugin: IPlugin {
 
 
         for (int i = 1; i < points.Count; i++) // i starts in 1 to avoid first point at acft position
-            aircraft.FlyDirect(new() {
-                Latitude = points[i].Item1, Longitude = points[i].Item2
+            aircraft.FlyDirect(new()
+            {
+                Latitude = points[i].Item1,
+                Longitude = points[i].Item2
             });
-        }
 
-        aircraft.FlyDirect(new() {
-            Latitude = rwy_point[0], Longitude = rwy_point[1]
+        aircraft.FlyDirect(new () {
+                Latitude = rwy_point[0], Longitude = rwy_point[1]
         });
 
         return "Following LOC";
