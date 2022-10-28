@@ -19,7 +19,7 @@ public class Plugin : IPlugin
     public Plugin()
     {
 
-        string[] regexes = new[] {
+        var regexes = new[] {
             @"ILS\s(?<lat>[+-]?\d+(\.\d+)?)[ /;](?<lon>[+-]?\d+(\.\d+)?);?\s*(?<hdg>\d+(.\d+)?)",
         };
 
@@ -32,7 +32,7 @@ public class Plugin : IPlugin
     }
 
     private double _integralError;
-    private double _errorLast;
+    public double ErrorLast;
     private double _target;
 
     private const double DistStep = 0.001;
@@ -43,24 +43,25 @@ public class Plugin : IPlugin
 
     private double Controller(double pos)
     {
-        double error = pos - _target;
+        var error = pos - _target;
 
-        this._integralError += error * DistStep;
-        double derivativeError = (error - _errorLast) / DistStep;
-        double output = Kp * error + Ki * _integralError + Kd * derivativeError;
-        this._errorLast = error;
+        _integralError += error * DistStep;
+        var derivativeError = (error - ErrorLast) / DistStep;
+        var output = Kp * error + Ki * _integralError + Kd * derivativeError;
+        ErrorLast = error;
 
         return output;
     }
 
-    private static double BrngFromVec(double lat1, double lon1, double lat2, double lon2)
+    private double BrngFromVec(double lat1, double lon1, double lat2, double lon2)
     {
         var lat1Rad = lat1 * Math.PI / 180;
         var lat2Rad = lat2 * Math.PI / 180;
-        var delta = (lon2 - lon1) * Math.PI / 180;
+        var delta1 = (lat2 - lat1) * Math.PI / 180;
+        var delta2 = (lon2 - lon1) * Math.PI / 180;
 
-        var y = Math.Sin(delta) * Math.Cos(lat2Rad);
-        var x = Math.Cos(lat1Rad) * Math.Sin(lat2Rad) - Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(delta);
+        var y = Math.Sin(delta2) * Math.Cos(lat2Rad);
+        var x = Math.Cos(lat1Rad) * Math.Sin(lat2Rad) - Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(delta2);
 
         var brng = Math.Atan2(y, x) * 180 / Math.PI;
 
@@ -101,7 +102,7 @@ public class Plugin : IPlugin
         return hdg;
     }
 
-    public string MessageReceived(IAircraft aircraft, string sender, string message)
+    public string? MessageReceived(IAircraft aircraft, string sender, string message)
     {
         var first = true;
         char turnDir;
@@ -110,7 +111,8 @@ public class Plugin : IPlugin
         double acftHdg = aircraft.TrueCourse;
         var initHdg = acftHdg;
 
-        var points = new List<(double, double)> { (aircraft.Position.Latitude, aircraft.Position.Longitude) };
+        var points = new List<(double, double)>();
+        points.Add((aircraft.Position.Latitude, aircraft.Position.Longitude));
 
         var match = _ils.Match(message);
 
@@ -177,18 +179,22 @@ public class Plugin : IPlugin
 
         }
 
+        for (var i = 1; i < points.Count; i++)
+        {
 
-        for (int i = 1; i < points.Count; i++) // i starts in 1 to avoid first point at acft position
             aircraft.FlyDirect(new()
             {
                 Latitude = points[i].Item1,
                 Longitude = points[i].Item2
             });
+        }
 
-        aircraft.FlyDirect(new () {
-                Latitude = rwyPoint[0], Longitude = rwyPoint[1]
+        aircraft.FlyDirect(new()
+        {
+            Latitude = rwyPoint[0],
+            Longitude = rwyPoint[1]
         });
-        
+
         return "Following LOC";
     }
 }
