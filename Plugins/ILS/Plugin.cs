@@ -57,11 +57,10 @@ public class Plugin : IPlugin
     {
         var lat1Rad = lat1 * Math.PI / 180;
         var lat2Rad = lat2 * Math.PI / 180;
-        var delta1 = (lat2 - lat1) * Math.PI / 180;
-        var delta2 = (lon2 - lon1) * Math.PI / 180;
+        var delta = (lon2 - lon1) * Math.PI / 180;
 
-        var y = Math.Sin(delta2) * Math.Cos(lat2Rad);
-        var x = Math.Cos(lat1Rad) * Math.Sin(lat2Rad) - Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(delta2);
+        var y = Math.Sin(delta) * Math.Cos(lat2Rad);
+        var x = Math.Cos(lat1Rad) * Math.Sin(lat2Rad) - Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(delta);
 
         var brng = Math.Atan2(y, x) * 180 / Math.PI;
 
@@ -111,8 +110,10 @@ public class Plugin : IPlugin
         double acftHdg = aircraft.TrueCourse;
         var initHdg = acftHdg;
 
-        var points = new List<(double, double)>();
-        points.Add((aircraft.Position.Latitude, aircraft.Position.Longitude));
+        var points = new List<(double, double)>
+        {
+            (aircraft.Position.Latitude, aircraft.Position.Longitude)
+        };
 
         var match = _ils.Match(message);
 
