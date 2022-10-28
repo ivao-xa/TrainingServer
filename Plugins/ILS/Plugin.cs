@@ -104,7 +104,6 @@ public class Plugin : IPlugin
 
     public string? MessageReceived(IAircraft aircraft, string sender, string message)
     {
-        System.Diagnostics.Debug.WriteLine("PENE");
         double rwy_offset;
         (double, double) temp_point = (aircraft.Position.Latitude, aircraft.Position.Longitude);
 
