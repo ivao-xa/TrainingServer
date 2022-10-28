@@ -41,7 +41,7 @@ public class Plugin : IPlugin
     private const double Kd = 0.05;
 
 
-    public double Controller(double pos)
+    private double Controller(double pos)
     {
         double error = pos - _target;
 
