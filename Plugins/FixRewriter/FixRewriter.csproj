@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <BaseOutputPath>C:\Users\Niko\Documents\Coding_Projects\IVAO\Training\TrainingServer\Plugins\FixRewriter</BaseOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Rewriter.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="FixRewriter.dll" />
+    <None Include="README.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\TrainingServer.Extensibility\TrainingServer.Extensibility.csproj" />
+  </ItemGroup>
+
+</Project>

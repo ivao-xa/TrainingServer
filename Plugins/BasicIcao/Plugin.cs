@@ -8,15 +8,15 @@ namespace BasicIcao;
 public class Plugin : IPlugin
 {
 #if DEBUG
-	public string FriendlyName => "Basic Heading, Altitude, Speed, and Squawk Control (DEBUG)";
+	public string FriendlyName => "Basic Heading, Altitude, Speed, Squawk, and Direct Control (DEBUG)";
 #else
-	public string FriendlyName => "Basic Heading, Altitude, Speed, and Squawk Control";
+	public string FriendlyName => "Basic Heading, Altitude, Speed, Squawk, and Direct Controll";
 #endif
-	public string Maintainer => "Wes (644899)";
+    public string Maintainer => "Wes (644899)";
 
-	private readonly Regex _headingRegex, _altitudeRegex, _speedRegex, _squawkRegex;
+	private readonly Regex _headingRegex, _altitudeRegex, _speedRegex, _squawkRegex, _directRegex;
 
-	public Plugin()
+    public Plugin()
 	{
 		RegexOptions rxo = RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture;
 
@@ -25,10 +25,11 @@ public class Plugin : IPlugin
 			@"^FH\s*(?<hdg>\d+(\.\d+)?)",
 			@"^[CD]\s*(?<alt>\d+)",
 			@"^SPD\s*(?<spd>\d+)",
-			@"^SQK?\s*(?<sqk>\d{4})"
-		};
+			@"^SQK?\s*(?<sqk>\d{4})",
+            @"^DCT\s*(?<lat>[0-9]+(\.[0-9]*)?)[;\s:](?<lon>[0-9]+(\.[0-9]*)?)[;:]?"
+        };
 
-		if (File.Exists("commands.re") && File.ReadAllLines("commands.re").Length >= 4)
+		if (File.Exists("commands.re") && File.ReadAllLines("commands.re").Length >= 5)
 			regexes = File.ReadAllLines("commands.re");
 		else
 			File.WriteAllLines("commands.re", regexes);
@@ -37,7 +38,8 @@ public class Plugin : IPlugin
 		_altitudeRegex	= new(regexes[1], rxo);
 		_speedRegex		= new(regexes[2], rxo);
 		_squawkRegex	= new(regexes[3], rxo);
-	}
+        _directRegex    = new(regexes[4], rxo);
+    }
 
 	private bool TryBreakUp(string message, out object[] fragments, out ushort? squawk)
 	{
@@ -74,7 +76,13 @@ public class Plugin : IPlugin
 				squawk = ushort.Parse(match.Groups["sqk"].Value);
 				message = message[match.Length..];
 			}
-			else
+            else if (_directRegex.IsMatch(message))
+            {
+                var match = _directRegex.Match(message);
+                frags.Add(new Coordinate() { Latitude = double.Parse(match.Groups["lat"].Value), Longitude = double.Parse(match.Groups["lon"].Value) });
+                message = message[match.Length..];
+            }
+            else
 			{
 				fragments = frags.ToArray();
 				return false;
@@ -125,7 +133,12 @@ public class Plugin : IPlugin
 					msgBacks.Add($"speed {spd:000}");
 					break;
 
-				default:
+                case Coordinate position:
+                    aircraft.FlyDirect(position);
+                    msgBacks.Add($"direct {position.Latitude:00.##}/{position.Longitude:#00.##}");
+                    break;
+
+                default:
 					System.Diagnostics.Debug.WriteLine("Unknown fragment " + frag.ToString());
 					break;
 			}
