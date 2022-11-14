@@ -76,13 +76,21 @@ namespace TrainingServer
 
 		/// <summary>Immediately disconnects the aircraft.</summary>
 		void Kill();
+
+		/// <returns>A JSON representation of the <see cref="IAircraft"/>.</returns>
+		string ToJson();
 	}
 
 	public interface IServer
 	{
-		/// <summary>Spawwns an aircraft based on the given parameters.</summary>
-		/// <returns>The <see cref="IAircraft"/> that was spawned if spawning succeeded, else <see langword="null"/> (typically callsign in use).</returns>
-		IAircraft? SpawnAircraft(string callsign, Flightplan flightplan, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
+        /// <summary>Spawns an aircraft based on the given parameters.</summary>
+        /// <returns>The <see cref="IAircraft"/> that was spawned if spawning succeeded, else <see langword="null"/> (typically callsign in use).</returns>
+        IAircraft? SpawnAircraft(string callsign, Flightplan flightplan, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
+
+        /// <summary>Spawns an aircraft from a JSON serialized string</summary>
+        /// <returns>The <see cref="IAircraft"/> that was spawned if spawning succeeded, else <see langword="null"/> (typically callsign in use).</returns>
+		/// <remarks>See also: <seealso cref="IAircraft.ToString()"/></remarks>
+        IAircraft? SpawnAircraft(string json);
 	}
 
 	public struct Coordinate
