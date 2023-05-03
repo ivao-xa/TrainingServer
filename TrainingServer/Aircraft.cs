@@ -178,7 +178,7 @@ internal partial class Aircraft : IAircraft, IDisposable
 			}
 
 			_triggerVnavInstruction.WaitOne();
-			cancelWait = false;
+			cancelVWait = false;
 
 			(InstructionType iType, object? args) = instr;
 
@@ -194,6 +194,7 @@ internal partial class Aircraft : IAircraft, IDisposable
 
 	#region Execute Instructions
 	private bool cancelWait = false;
+	private bool cancelVWait = false;
 	private async Task WaitWhileAsync(Func<bool> condition, Action? eachLoop = null)
 	{
 		while (!cancelWait && condition.Invoke())
@@ -396,13 +397,22 @@ internal partial class Aircraft : IAircraft, IDisposable
 	{
 		_ronCache = new(_pendingLnavInstructions);
 		_pendingLnavInstructions.Clear();
-		Continue();
-	}
+		ContinueLnav();
+    }
 
-	public void Continue() =>
+    public void InterruptVnav()
+    {
+        _pendingVnavInstructions.Clear();
+        ContinueVnav();
+    }
+
+    public void ContinueLnav() =>
 		cancelWait = true;
 
-	public bool ResumeOwnNavigation()
+    public void ContinueVnav() =>
+        cancelVWait = true;
+
+    public bool ResumeOwnNavigation()
 	{
 		if (_ronCache is null)
 			return false;

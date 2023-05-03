@@ -102,7 +102,7 @@ public class Plugin : IPlugin
 			case Command.Continue:
 				// Allow both "CON" and "CON 3"
 				foreach (var _ in Enumerable.Range(0, parts.Length > 1 ? uint.TryParse(parts[1], out uint ct) ? (int)ct : 1 : 1))
-					aircraft.Continue();
+					aircraft.ContinueLnav();
 
 				return "Continuing";
 

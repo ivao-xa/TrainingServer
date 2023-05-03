@@ -27,16 +27,6 @@ namespace TrainingServer
 		/// <summary><see langword="true"/> if <see langword="this"/> <see cref="IAircraft"/> is paused, otherwise <see langword="false"/>.</summary>
 		bool Paused { get; set; }
 
-		/// <summary>Interrupts the current route. Can be resumed later with <see cref="ResumeOwnNavigation"/>.</summary>
-		public void Interrupt();
-
-		/// <summary>Skips the currently executing instruction and continues on.</summary>
-		public void Continue();
-
-		/// <summary>Resumes a route previously <see cref="Interrupt"/>ed.</summary>
-		/// <returns><see langword="true"/> if a previous route was resumed, else <see langword="false"/>.</returns>
-		public bool ResumeOwnNavigation();
-
 		/// <summary>Turns to face a certain course.</summary>
 		/// <param name="trueCourse">The course in degrees true to turn to.</param>
 		/// <param name="turnRate">The turn rate in degrees per second.</param>
@@ -62,7 +52,7 @@ namespace TrainingServer
 		/// <param name="degreesOfArc">The number of degrees of arc (clockwise positive) to fly.</param>
 		void FlyArc(Coordinate arcCenterpoint, float degreesOfArc);
 
-		/// <summary>Flies along the present track until the <see cref="Continue"/> or <see cref="Interrupt"/> command is given.</summary>
+		/// <summary>Flies along the present track until the <see cref="ContinueLnav"/> or <see cref="Interrupt"/> command is given.</summary>
 		void FlyForever();
 
 		/// <summary>Flies until complying with the most recently issued altitude instruction.</summary>
@@ -82,6 +72,12 @@ namespace TrainingServer
 
 		/// <summary>Clears all pending LNAV instructions.</summary>
 		void Interrupt();
+
+        /// <summary>Clears all pending VNAV instructions.</summary>
+        void InterruptVnav();
+
+        /// <summary>Skips the currently executing LNAV instruction and continues on.</summary>
+        public void ContinueLnav();
 
         /// <summary>Returns to executing the LNAV instructions queued before the most recent call to <see cref="Interrupt"/>.</summary>
         /// <returns><see langword="true"/> if successful, otherwise no route changes occur and <see langword="false"/> is returned.</returns>
