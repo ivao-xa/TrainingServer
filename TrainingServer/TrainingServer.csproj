@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageProjectUrl></PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ivao-xa/TrainingServer/</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CIFPReader\CIFPReader.csproj" />
+    <ProjectReference Include="..\TrainingServer.Extensibility\TrainingServer.Extensibility.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="IVAN.FSD">
+      <HintPath>IVAN.FSD.dll</HintPath>
+    </Reference>
+    <Reference Include="IVAN.FSD.Protocol">
+      <HintPath>IVAN.FSD.Protocol.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

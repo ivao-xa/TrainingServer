@@ -27,16 +27,26 @@ namespace TrainingServer
 		/// <summary><see langword="true"/> if <see langword="this"/> <see cref="IAircraft"/> is paused, otherwise <see langword="false"/>.</summary>
 		bool Paused { get; set; }
 
-        /// <summary>Turns to face a certain course.</summary>
-        /// <param name="trueCourse">The course in degrees true to turn to.</param>
-        /// <param name="turnRate">The turn rate in degrees per second.</param>
-        /// <param name="turnDirection">The direction to turn, else <see langword="null"/> for the smallest angle.</param>
-        void TurnCourse(float trueCourse, float turnRate = 3f, TurnDirection? turnDirection = null);
+		/// <summary>Interrupts the current route. Can be resumed later with <see cref="ResumeOwnNavigation"/>.</summary>
+		public void Interrupt();
+
+		/// <summary>Skips the currently executing instruction and continues on.</summary>
+		public void Continue();
+
+		/// <summary>Resumes a route previously <see cref="Interrupt"/>ed.</summary>
+		/// <returns><see langword="true"/> if a previous route was resumed, else <see langword="false"/>.</returns>
+		public bool ResumeOwnNavigation();
+
+		/// <summary>Turns to face a certain course.</summary>
+		/// <param name="trueCourse">The course in degrees true to turn to.</param>
+		/// <param name="turnRate">The turn rate in degrees per second.</param>
+		/// <param name="turnDirection">The direction in which to turn. If <see langword="null"/>, then takes the shortest turn.</param>
+		void TurnCourse(float trueCourse, float turnRate = 3f, TurnDirection? turnDirection = null);
 
 		/// <summary>Flies to a given <see cref="Coordinate"/>.</summary>
 		/// <param name="destination">The <see cref="Coordinate"/> to fly to.</param>
 		/// <param name="turnRate">The turn rate in degrees per second.</param>
-		/// <param name="turnDirection">The direction to turn, else <see langword="null"/> for the smallest angle.</param>
+		/// <param name="turnDirection">The direction in which to turn. If <see langword="null"/>, then takes the shortest turn.</param>
 		void FlyDirect(Coordinate destination, float turnRate = 3f, TurnDirection? turnDirection = null);
 
 		/// <summary>Flies a given distance along the present course.</summary>
@@ -51,6 +61,9 @@ namespace TrainingServer
 		/// <param name="arcCenterpoint">The centerpoint/origin of the arc.</param>
 		/// <param name="degreesOfArc">The number of degrees of arc (clockwise positive) to fly.</param>
 		void FlyArc(Coordinate arcCenterpoint, float degreesOfArc);
+
+		/// <summary>Flies along the present track until the <see cref="Continue"/> or <see cref="Interrupt"/> command is given.</summary>
+		void FlyForever();
 
 		/// <summary>Flies until complying with the most recently issued altitude instruction.</summary>
 		void FlyAltitude();
@@ -79,6 +92,9 @@ namespace TrainingServer
 
 		/// <returns>A JSON representation of the <see cref="IAircraft"/>.</returns>
 		string ToJson();
+
+		/// <summary>Send a PM to the given recipient.</summary>
+		void SendTextMessage(IServer server, string recipient, string message);
 	}
 
 	public interface IServer
@@ -97,6 +113,9 @@ namespace TrainingServer
 	{
 		public double Latitude { get; set; }
 		public double Longitude { get; set; }
+
+		public override string ToString() =>
+			$"({Latitude:00.0}, {Longitude:000.0})";
 	}
 
 	public struct Flightplan

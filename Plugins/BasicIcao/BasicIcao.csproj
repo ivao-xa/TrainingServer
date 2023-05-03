@@ -6,14 +6,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Reference Include="TrainingServer.Extensibility">
-      <HintPath>..\..\TrainingServer.Extensibility\TrainingServer.Extensibility.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="move $(OutDir)$(AssemblyName).dll $(ProjectDir)" />
   </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\TrainingServer.Extensibility\TrainingServer.Extensibility.csproj" />
+  </ItemGroup>
 
 </Project>

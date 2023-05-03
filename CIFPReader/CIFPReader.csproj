@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="CIFPReader.Tests\**" />
+    <EmbeddedResource Remove="CIFPReader.Tests\**" />
+    <None Remove="CIFPReader.Tests\**" />
+  </ItemGroup>
+
+</Project>
