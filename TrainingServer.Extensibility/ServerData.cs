@@ -63,12 +63,18 @@ namespace TrainingServer
 		/// <param name="maximum">The maximum altitude in feet MSL to descend to.</param>
 		/// <param name="climbRate">The vertical velocity magnitude in positive feet per second.</param>
 		void RestrictAltitude(int minimum, int maximum, uint climbRate);
+		
+		/// <summary>Causes the VNAV queue to block until the LNAV queue unblocks.</summary>
+        void PauseAltitudeUntilWaypoint();
 
-		/// <summary>Accelerates or decelerates as needed to comply with the given speed restriction.</summary>
-		/// <param name="minimum">The minimum groundspeed in knots to accelerate to.</param>
-		/// <param name="maximum">The maximum groundspeed in knots to decelerate to.</param>
-		/// <param name="acceleration">The acceleration/deceleration rate in kts per second.</param>
-		void RestrictSpeed(uint minimum, uint maximum, float acceleration);
+        /// <summary>Accelerates or decelerates as needed to comply with the given speed restriction.</summary>
+        /// <param name="minimum">The minimum groundspeed in knots to accelerate to.</param>
+        /// <param name="maximum">The maximum groundspeed in knots to decelerate to.</param>
+        /// <param name="acceleration">The acceleration/deceleration rate in kts per second.</param>
+        void RestrictSpeed(uint minimum, uint maximum, float acceleration);
+
+        /// <summary>Causes the speed queue to block until the LNAV queue unblocks.</summary>
+        void PauseSpeedUntilWaypoint();
 
 		/// <summary>Clears all pending LNAV instructions.</summary>
 		void Interrupt();
@@ -76,8 +82,17 @@ namespace TrainingServer
         /// <summary>Clears all pending VNAV instructions.</summary>
         void InterruptVnav();
 
+        /// <summary>Clears all pending speed instructions.</summary>
+        void InterruptSpeed();
+
         /// <summary>Skips the currently executing LNAV instruction and continues on.</summary>
         public void ContinueLnav();
+
+        /// <summary>Skips the currently executing VNAV instruction and continues on.</summary>
+        public void ContinueVnav();
+
+        /// <summary>Skips the currently executing speed instruction and continues on.</summary>
+        public void ContinueSpeed();
 
         /// <summary>Returns to executing the LNAV instructions queued before the most recent call to <see cref="Interrupt"/>.</summary>
         /// <returns><see langword="true"/> if successful, otherwise no route changes occur and <see langword="false"/> is returned.</returns>

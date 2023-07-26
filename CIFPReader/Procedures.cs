@@ -19,6 +19,8 @@ public class Procedure
 	public Procedure(string name, IEnumerable<Instruction> instructions) : this(name) =>
 		this.instructions = instructions.ToList();
 
+	public virtual bool HasRoute(string? inboundTransition, string? outboundTransition) => false;
+
 	public virtual IEnumerable<Instruction> SelectRoute(string? inboundTransition, string? outboundTransition) =>
 		instructions.AsEnumerable().Select(i => i);
 
@@ -259,14 +261,28 @@ public class SID : Procedure
 		}
 	}
 
+	public override bool HasRoute(string? inboundTransition, string? outboundTransition) =>
+		(outboundTransition is null || enrouteTransitions.ContainsKey(outboundTransition)) && (inboundTransition is null || runwayTransitions.ContainsKey(inboundTransition));
+
 	public override IEnumerable<Instruction> SelectRoute(string? inboundTransition, string? outboundTransition)
 	{
+		string lastName = "";
+
 		if (outboundTransition is not null && !enrouteTransitions.ContainsKey(outboundTransition))
 			throw new ArgumentException($"Enroute transition {outboundTransition} was not found.", nameof(outboundTransition));
 
 		if (inboundTransition is null && runwayTransitions.ContainsKey("ALL"))
 			foreach (Instruction i in runwayTransitions["ALL"])
+			{
+				if (i.Endpoint is NamedCoordinate nc)
+					if (nc.Name == lastName)
+						continue;
+					else
+						lastName = nc.Name;
+
 				yield return i;
+			}
+
 		else if (inboundTransition is not null)
 		{
 			if (!runwayTransitions.ContainsKey(inboundTransition))
@@ -278,18 +294,50 @@ public class SID : Procedure
 			}
 
 			foreach (Instruction i in runwayTransitions[inboundTransition])
+			{
+				if (i.Endpoint is NamedCoordinate nc)
+					if (nc.Name == lastName)
+						continue;
+					else
+						lastName = nc.Name;
+
 				yield return i;
+			}
 		}
 
 		foreach (Instruction i in commonRoute)
+		{
+			if (i.Endpoint is NamedCoordinate nc)
+				if (nc.Name == lastName)
+					continue;
+				else
+					lastName = nc.Name;
+
 			yield return i;
+		}
 
 		if (outboundTransition is null && enrouteTransitions.ContainsKey("ALL"))
 			foreach (Instruction i in enrouteTransitions["ALL"])
+			{
+				if (i.Endpoint is NamedCoordinate nc)
+					if (nc.Name == lastName)
+						continue;
+					else
+						lastName = nc.Name;
+
 				yield return i;
+			}
 		else if (outboundTransition is not null)
 			foreach (Instruction i in enrouteTransitions[outboundTransition])
+			{
+				if (i.Endpoint is NamedCoordinate nc)
+					if (nc.Name == lastName)
+						continue;
+					else
+						lastName = nc.Name;
+
 				yield return i;
+			}
 
 		yield break;
 	}
@@ -298,6 +346,11 @@ public class SID : Procedure
 	{
 		HashSet<string?> inbounds = runwayTransitions.Keys.Select(k => k == "ALL" ? null : k).ToHashSet();
 		HashSet<string?> outbounds = enrouteTransitions.Keys.Select(k => k == "ALL" ? null : k).ToHashSet();
+
+		if (!inbounds.Any())
+			inbounds = new(new string?[] { null });
+		if (!outbounds.Any())
+			outbounds = new(new string?[] { null });
 
 		return inbounds.SelectMany(i => outbounds.Select(o => (i, o)));
 	}
@@ -534,8 +587,13 @@ public class STAR : Procedure
 		}
 	}
 
+	public override bool HasRoute(string? inboundTransition, string? outboundTransition) =>
+		(outboundTransition is null || runwayTransitions.ContainsKey(outboundTransition)) && (inboundTransition is null || enrouteTransitions.ContainsKey(inboundTransition));
+
 	public override IEnumerable<Instruction> SelectRoute(string? inboundTransition, string? outboundTransition)
 	{
+		string lastName = "";
+
 		if (inboundTransition is not null && !enrouteTransitions.ContainsKey(inboundTransition))
 			throw new ArgumentException($"Enroute transition {inboundTransition} was not found.", nameof(inboundTransition));
 
@@ -549,20 +607,60 @@ public class STAR : Procedure
 
 		if (inboundTransition is null && enrouteTransitions.ContainsKey("ALL"))
 			foreach (Instruction i in enrouteTransitions["ALL"])
+			{
+				if (i.Endpoint is NamedCoordinate nc)
+					if (nc.Name == lastName)
+						continue;
+					else
+						lastName = nc.Name;
+
 				yield return i;
+			}
 		else if (inboundTransition is not null)
 			foreach (Instruction i in enrouteTransitions[inboundTransition])
+			{
+				if (i.Endpoint is NamedCoordinate nc)
+					if (nc.Name == lastName)
+						continue;
+					else
+						lastName = nc.Name;
+
 				yield return i;
+			}
 
 		foreach (Instruction i in commonRoute)
+		{
+			if (i.Endpoint is NamedCoordinate nc)
+				if (nc.Name == lastName)
+					continue;
+				else
+					lastName = nc.Name;
+
 			yield return i;
+		}
 
 		if (outboundTransition is null && runwayTransitions.ContainsKey("ALL"))
 			foreach (Instruction i in runwayTransitions["ALL"])
+			{
+				if (i.Endpoint is NamedCoordinate nc)
+					if (nc.Name == lastName)
+						continue;
+					else
+						lastName = nc.Name;
+
 				yield return i;
+			}
 		else if (outboundTransition is not null)
 			foreach (Instruction i in runwayTransitions[outboundTransition])
+			{
+				if (i.Endpoint is NamedCoordinate nc)
+					if (nc.Name == lastName)
+						continue;
+					else
+						lastName = nc.Name;
+
 				yield return i;
+			}
 
 		yield break;
 	}
@@ -571,6 +669,11 @@ public class STAR : Procedure
 	{
 		HashSet<string?> inbounds = enrouteTransitions.Keys.Select(k => k == "ALL" ? null : k).ToHashSet();
 		HashSet<string?> outbounds = runwayTransitions.Keys.Select(k => k == "ALL" ? null : k).ToHashSet();
+
+		if (!inbounds.Any())
+			inbounds = new(new string?[] { null });
+		if (!outbounds.Any())
+			outbounds = new(new string?[] { null });
 
 		return inbounds.SelectMany(i => outbounds.Select(o => (i, o)));
 	}
@@ -698,7 +801,8 @@ public class Approach : Procedure
 					   navaids[line.ReferencedNavaid]
 					   .OrderBy(na => na.Position.DistanceTo((referencePoint ?? (line.Endpoint is ICoordinate c ? c : throw new Exception("Unable to pin magvar for IAP."))).GetCoordinate()))
 					   .Select(na =>
-						   na switch {
+						   na switch
+						   {
 							   VOR v => v.MagneticVariation,
 							   NavaidILS ni => ni.MagneticVariation,
 							   ILS i => i.LocalizerCourse.Variation,
@@ -795,8 +899,13 @@ public class Approach : Procedure
 			yield return i;
 	}
 
+	public override bool HasRoute(string? inboundTransition, string? outboundTransition) =>
+		outboundTransition is null && (inboundTransition is null || transitions.ContainsKey(inboundTransition));
+
 	public override IEnumerable<Instruction> SelectRoute(string? inboundTransition, string? outboundTransition)
 	{
+		string lastName = "";
+
 		if (outboundTransition is not null)
 			throw new ArgumentException($"Outbound transitions don't make sense for an IAP.", nameof(outboundTransition));
 
@@ -806,11 +915,27 @@ public class Approach : Procedure
 				throw new ArgumentException($"Approach transition {inboundTransition} was not found.", nameof(inboundTransition));
 
 			foreach (Instruction i in transitions[inboundTransition])
+			{
+				if (i.Endpoint is NamedCoordinate nc)
+					if (nc.Name == lastName)
+						continue;
+					else
+						lastName = nc.Name;
+
 				yield return i;
+			}
 		}
 
 		foreach (Instruction i in commonRoute)
+		{
+			if (i.Endpoint is NamedCoordinate nc)
+				if (nc.Name == lastName)
+					continue;
+				else
+					lastName = nc.Name;
+
 			yield return i;
+		}
 
 		yield break;
 	}
@@ -818,6 +943,9 @@ public class Approach : Procedure
 	public IEnumerable<(string? Inbound, string? Outbound)> EnumerateTransitions()
 	{
 		HashSet<string?> inbounds = transitions.Keys.Select(k => k == "ALL" ? null : k).ToHashSet();
+
+		if (!inbounds.Any())
+			inbounds = new(new string?[] { null });
 
 		return inbounds.Select(i => (i, (string?)null));
 	}

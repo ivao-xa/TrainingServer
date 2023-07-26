@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -14,65 +15,75 @@ public record CIFP(GridMORA[] MORAs, Airspace[] Airspaces, Dictionary<string, Ae
 
 	public int Cycle => Aerodromes.Values.Max(a => a.Cycle);
 
-	public static CIFP Load()
+	public static CIFP Load(string? directory = null)
 	{
-		if (File.Exists("CIFP.zip"))
+		directory ??= Environment.CurrentDirectory;
+
+		string zipPath = Path.Combine(directory, "CIFP.zip"),
+			   cifpPath = Path.Combine(directory, "FAACIFP18"),
+			   outputPath = Path.Combine(directory, "cifp");
+		if (File.Exists(zipPath))
 		{
-			using (ZipArchive archive = ZipFile.OpenRead("CIFP.zip"))
+			using (ZipArchive archive = ZipFile.OpenRead(zipPath))
 			{
 				var zae = archive.GetEntry("FAACIFP18") ?? throw new FileNotFoundException("ZIP archive doesn't contain FAACIFP18.");
 
-				zae.ExtractToFile("FAACIFP18");
+				zae.ExtractToFile(cifpPath);
 			}
-			File.Delete("CIFP.zip");
+			File.Delete(zipPath);
 		}
-		if (File.Exists("FAACIFP18"))
+
+		if (File.Exists(cifpPath))
 		{
-			CIFP retval = new(File.ReadAllLines("FAACIFP18"));
+			CIFP retval = new(File.ReadAllLines(cifpPath));
 
 			if (Directory.Exists("cifp"))
 				Directory.Delete("cifp", true);
 
-			retval.Save();
-			File.Delete("FAACIFP18");
+			retval.Save(directory);
+			File.Delete(cifpPath);
 			return retval;
 		}
-		else if (Directory.Exists("cifp"))
+		else if (Directory.Exists(outputPath))
 			return new(
-				JsonSerializer.Deserialize<GridMORA[]>(File.ReadAllText("cifp/mora.json")) ?? throw new Exception(),
-				Array.Empty<Airspace>(), //JsonSerializer.Deserialize<Airspace[]>(File.ReadAllText("cifp/airspace.json")) ?? throw new Exception(),
-				new(JsonSerializer.Deserialize<Aerodrome[]>(File.ReadAllText("cifp/aerodrome.json"))?.Select(a => new KeyValuePair<string, Aerodrome>(a.Identifier, a)) ?? throw new Exception()),
-				JsonSerializer.Deserialize<Dictionary<string, HashSet<ICoordinate>>>(File.ReadAllText("cifp/fix.json")) ?? throw new Exception(),
-				JsonSerializer.Deserialize<Dictionary<string, HashSet<Navaid>>>(File.ReadAllText("cifp/navaid.json")) ?? throw new Exception(),
-				JsonSerializer.Deserialize<Dictionary<string, HashSet<Airway>>>(File.ReadAllText("cifp/airway.json")) ?? throw new Exception(),
-				JsonSerializer.Deserialize<Dictionary<string, HashSet<Procedure>>>(File.ReadAllText("cifp/procedure.json")) ?? throw new Exception(),
-				JsonSerializer.Deserialize<Dictionary<string, HashSet<Runway>>>(File.ReadAllText("cifp/runway.json")) ?? throw new Exception()
+				JsonSerializer.Deserialize<GridMORA[]>(File.ReadAllText(Path.Combine(outputPath, "mora.json"))) ?? throw new Exception(),
+				JsonSerializer.Deserialize<Airspace[]>(File.ReadAllText(Path.Combine(outputPath, "airspace.json"))) ?? throw new Exception(),
+				new(JsonSerializer.Deserialize<Aerodrome[]>(File.ReadAllText(Path.Combine(outputPath, "aerodrome.json")))?.Select(a => new KeyValuePair<string, Aerodrome>(a.Identifier, a)) ?? throw new Exception()),
+				JsonSerializer.Deserialize<Dictionary<string, HashSet<ICoordinate>>>(File.ReadAllText(Path.Combine(outputPath, "fix.json"))) ?? throw new Exception(),
+				JsonSerializer.Deserialize<Dictionary<string, HashSet<Navaid>>>(File.ReadAllText(Path.Combine(outputPath, "navaid.json"))) ?? throw new Exception(),
+				JsonSerializer.Deserialize<Dictionary<string, HashSet<Airway>>>(File.ReadAllText(Path.Combine(outputPath, "airway.json"))) ?? throw new Exception(),
+				JsonSerializer.Deserialize<Dictionary<string, HashSet<Procedure>>>(File.ReadAllText(Path.Combine(outputPath, "procedure.json"))) ?? throw new Exception(),
+				JsonSerializer.Deserialize<Dictionary<string, HashSet<Runway>>>(File.ReadAllText(Path.Combine(outputPath, "runway.json"))) ?? throw new Exception()
 			);
 		else
 		{
 			HttpClient cli = new();
 			string pageListing = cli.GetStringAsync(@"https://aeronav.faa.gov/Upload_313-d/cifp/").Result;
+#pragma warning disable SYSLIB1045 // Convert to 'GeneratedRegexAttribute'.
 			Regex cifpZip = new(@"CIFP_\d+\.zip");
+#pragma warning restore SYSLIB1045 // Convert to 'GeneratedRegexAttribute'.
 			string currentCifp = cifpZip.Matches(pageListing).Last().Value;
 			byte[] cifpDat = cli.GetByteArrayAsync(@"https://aeronav.faa.gov/Upload_313-d/cifp/" + currentCifp).Result;
-			File.WriteAllBytes("CIFP.zip", cifpDat);
-			return Load();
+			File.WriteAllBytes(zipPath, cifpDat);
+			return Load(directory);
 		}
 	}
 
-	private void Save()
+	private void Save(string? directory = null)
 	{
+		directory ??= Environment.CurrentDirectory;
+		string outputPath = Path.Combine(directory, "cifp");
 		JsonSerializerOptions opts = new() { WriteIndented = true };
 
-		Directory.CreateDirectory("cifp");
-		File.WriteAllText("cifp/mora.json", JsonSerializer.Serialize(MORAs, opts));
-		//File.WriteAllText("cifp/airspace.json", JsonSerializer.Serialize(Airspaces, opts));
-		File.WriteAllText("cifp/aerodrome.json", JsonSerializer.Serialize(Aerodromes.Values.ToArray(), opts));
-		File.WriteAllText("cifp/fix.json", JsonSerializer.Serialize(Fixes, opts));
-		File.WriteAllText("cifp/navaid.json", JsonSerializer.Serialize(Navaids, opts));
-		File.WriteAllText("cifp/airway.json", JsonSerializer.Serialize(Airways, opts));
-		File.WriteAllText("cifp/procedure.json", JsonSerializer.Serialize(Procedures, opts));
-		File.WriteAllText("cifp/runway.json", JsonSerializer.Serialize(Runways, opts));
+		Directory.CreateDirectory(outputPath);
+		File.WriteAllText(Path.Combine(outputPath, "mora.json"), JsonSerializer.Serialize(MORAs, opts));
+		File.WriteAllText(Path.Combine(outputPath, "airspace.json"), JsonSerializer.Serialize(Airspaces, opts));
+		File.WriteAllText(Path.Combine(outputPath, "aerodrome.json"), JsonSerializer.Serialize(Aerodromes.Values.ToArray(), opts));
+		File.WriteAllText(Path.Combine(outputPath, "fix.json"), JsonSerializer.Serialize(Fixes, opts));
+		File.WriteAllText(Path.Combine(outputPath, "navaid.json"), JsonSerializer.Serialize(Navaids, opts));
+		File.WriteAllText(Path.Combine(outputPath, "airway.json"), JsonSerializer.Serialize(Airways, opts));
+		File.WriteAllText(Path.Combine(outputPath, "procedure.json"), JsonSerializer.Serialize(Procedures, opts));
+		File.WriteAllText(Path.Combine(outputPath, "runway.json"), JsonSerializer.Serialize(Runways, opts));
 	}
 
 	public CIFP(string[] cifpFileLines) : this()
@@ -107,8 +118,7 @@ public record CIFP(GridMORA[] MORAs, Airspace[] Airspaces, Dictionary<string, Ae
 
 					--lineIndex;
 
-					if (!segments.Any(ca => ca.Boundary.BoundaryVia is ControlledAirspace.BoundaryViaType.RhumbLine))
-						airspaces.Add(new(segments.ToArray()));
+					airspaces.Add(new(segments.ToArray()));
 					break;
 
 				case RestrictiveAirspace _:
@@ -125,7 +135,7 @@ public record CIFP(GridMORA[] MORAs, Airspace[] Airspaces, Dictionary<string, Ae
 					break;
 
 				case SIDLine sl:
-						sidSteps.Add(sl);
+					sidSteps.Add(sl);
 
 					while (SIDLine.TryParse(cifpFileLines[++lineIndex], out SIDLine? s))
 						sidSteps.Add(s);
@@ -134,7 +144,7 @@ public record CIFP(GridMORA[] MORAs, Airspace[] Airspaces, Dictionary<string, Ae
 					break;
 
 				case STARLine sl:
-						starSteps.Add(sl);
+					starSteps.Add(sl);
 
 					while (STARLine.TryParse(cifpFileLines[++lineIndex], out STARLine? s))
 						starSteps.Add(s);
@@ -168,7 +178,7 @@ public record CIFP(GridMORA[] MORAs, Airspace[] Airspaces, Dictionary<string, Ae
 					break;
 
 				case AirwayFixLine af:
-					 awLines.Add(af);
+					awLines.Add(af);
 
 					for (int seqNum = af.SequenceNumber;
 						AirwayFixLine.TryParse(cifpFileLines[++lineIndex], out AirwayFixLine? f) && f.AirwayIdentifier == af.AirwayIdentifier && f.SequenceNumber > seqNum;
@@ -347,8 +357,7 @@ public record RecordLine(string Client, string Header, int FileRecordNumber, int
 	public RecordLine() : this("", "", 0, 0) { }
 
 	public static RecordLine? Parse(string line) =>
-		line[4] switch
-		{
+		line[4] switch {
 			'A' or 'U' => AirspaceLine.Parse(line),
 			'D' => Navaid.Parse(line),
 			'E' => EnrouteLine.Parse(line),
@@ -498,14 +507,13 @@ public record Racetrack(ICoordinate? Point, UnresolvedWaypoint? Waypoint, Course
 		if (state is null)
 		{
 			state = HoldState.Entry;
-			entry = (LeftTurns, -currentCourse.Angle(InboundCourse)) switch
-			{
-				(false,	>= -70 and <= 110) or
-				(true,	<= 70 and >= -110) => EntryType.Direct,
-				(false,	< -70) or
-				(true,	> 70)  => EntryType.Parallel,
-				(false,	> 110) or
-				(true,	< -110) => EntryType.Teardrop
+			entry = (LeftTurns, -currentCourse.Angle(InboundCourse)) switch {
+				(false, >= -70 and <= 110) or
+				(true, <= 70 and >= -110) => EntryType.Direct,
+				(false, < -70) or
+				(true, > 70) => EntryType.Parallel,
+				(false, > 110) or
+				(true, < -110) => EntryType.Teardrop
 			};
 
 			stable = true;
@@ -584,8 +592,8 @@ public record Racetrack(ICoordinate? Point, UnresolvedWaypoint? Waypoint, Course
 						if (!stable)
 							return IProcedureVia.TurnTowards(currentCourse, InboundCourse.Reciprocal, refreshRate, onGround, LeftTurns);
 
-						if ((Distance	is not null && abeamPoint!.Value.DistanceTo(position)	>= Distance)
-						 || (Time		is not null && DateTime.UtcNow - abeamTime!.Value		>= Time))
+						if ((Distance is not null && abeamPoint!.Value.DistanceTo(position) >= Distance)
+						 || (Time is not null && DateTime.UtcNow - abeamTime!.Value >= Time))
 						{
 							abeamPoint = null;
 							abeamTime = null;
@@ -719,8 +727,8 @@ public record Arc(ICoordinate? Centerpoint, UnresolvedWaypoint? Centerwaypoint, 
 
 		Course targetBearing =
 			bearing.Angle(ArcTo) > 0
-			? bearing + 90	// Clockwise
-			: bearing - 90;	// Anticlockwise
+			? bearing + 90  // Clockwise
+			: bearing - 90; // Anticlockwise
 
 		return IProcedureVia.TurnTowards(currentCourse, targetBearing, refreshRate, onGround);
 	}
@@ -810,8 +818,7 @@ public record AltitudeRestriction(Altitude? Minimum, Altitude? Maximum)
 		else if ((char)description == 'X' && alt1 == alt2)
 			alt2 = null;
 
-		description = (char)description switch
-		{
+		description = (char)description switch {
 			' ' or 'X' => AltitudeDescription.At,
 			'J' or 'H' or 'V' => AltitudeDescription.Between,
 			'I' or 'G' => AltitudeDescription.At,
@@ -823,8 +830,7 @@ public record AltitudeRestriction(Altitude? Minimum, Altitude? Maximum)
 		{
 			// A couple of strange procedures here. Likely irregularities, though this includes one into KDTW.
 
-			(description, alt1, alt2) = (alt1, alt2) switch
-			{
+			(description, alt1, alt2) = (alt1, alt2) switch {
 				(Altitude a, Altitude b) when a == b => (AltitudeDescription.AtOrAbove, a, null),
 				(Altitude a, Altitude b) when a < b => (AltitudeDescription.Between, a, b),
 				(Altitude a, Altitude b) when a > b => (AltitudeDescription.AtOrAbove, a, null),
@@ -840,8 +846,7 @@ public record AltitudeRestriction(Altitude? Minimum, Altitude? Maximum)
 		else if (description != AltitudeDescription.Between && alt2 is not null)
 			throw new ArgumentOutOfRangeException(nameof(alt2), "Single altitude restrictions should not be passed two altitudes.");
 
-		return description switch
-		{
+		return description switch {
 			AltitudeDescription.Between => new(alt1, alt2),
 			AltitudeDescription.At => new(alt1, alt1),
 
@@ -885,7 +890,7 @@ public record AltitudeRestriction(Altitude? Minimum, Altitude? Maximum)
 			min = int.Parse(data.Split()[0][1..]) * 100;
 		if (data.EndsWith('\\'))
 			max = int.Parse(data.Split().Last()[..^1]) * 100;
-		
+
 		return new(min is null ? null : new AltitudeMSL(min.Value), max is null ? null : new AltitudeMSL(max.Value));
 	}
 }
@@ -908,7 +913,7 @@ public record SpeedRestriction(uint? Minimum, uint? Maximum)
 
 		return string.IsNullOrWhiteSpace(retval) ? "Unrestricted" : retval;
 	}
-	
+
 	public static SpeedRestriction Parse(string data)
 	{
 		if (data == "Unrestricted")
@@ -947,7 +952,7 @@ public class UnresolvedWaypoint : IProcedureEndpoint
 
 	public class UnresolvedWaypointJsonConverter : JsonConverter<UnresolvedWaypoint>
 	{
-		public override UnresolvedWaypoint Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => 
+		public override UnresolvedWaypoint Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
 			throw new JsonException();
 
 		public override void Write(Utf8JsonWriter writer, UnresolvedWaypoint value, JsonSerializerOptions options) =>
@@ -957,35 +962,55 @@ public class UnresolvedWaypoint : IProcedureEndpoint
 
 public static class Extensions
 {
-	public static NamedCoordinate Concretize(this Dictionary<string, HashSet<ICoordinate>> fixes, string wp, Coordinate? refCoord = null, string? refString = null)
+	public static bool TryConcretize(this Dictionary<string, HashSet<ICoordinate>> fixes, string wp, [NotNullWhen(true)] out NamedCoordinate? coord, Coordinate? refCoord = null, string? refString = null)
 	{
 		if (!fixes.ContainsKey(wp))
 			throw new ArgumentException($"Unknown waypoint {wp}.", nameof(wp));
 
 		if (fixes[wp].Count == 1)
-			return fixes[wp].Single() switch {
+		{
+			coord = fixes[wp].Single() switch {
 				NamedCoordinate nc => nc,
 				Coordinate c => new(wp, c),
-				_ => throw new NotImplementedException()
+				_ => null
 			};
 
+			return coord is not null;
+		}
+
 		if (refCoord is not null)
-			return fixes[wp].MinBy(wp => wp.GetCoordinate().DistanceTo(refCoord.Value)) switch {
+		{
+			coord = fixes[wp].MinBy(wp => wp.GetCoordinate().DistanceTo(refCoord.Value)) switch {
 				NamedCoordinate nc => nc,
 				Coordinate c => new(wp, c),
-				_ => throw new NotImplementedException()
+				_ => null
 			};
+
+			return coord is not null;
+		}
 		else if (refString is not null)
 		{
 			if (!fixes.ContainsKey(refString))
 				throw new ArgumentException($"Unknown waypoint {refString}.", nameof(refString));
 
-			return fixes[wp].MinBy(wp => fixes[refString].Min(rwp => wp.GetCoordinate().DistanceTo(rwp.GetCoordinate()))) switch {
+			coord = fixes[wp].MinBy(wp => fixes[refString].Min(rwp => wp.GetCoordinate().DistanceTo(rwp.GetCoordinate()))) switch {
 				NamedCoordinate nc => nc,
 				Coordinate c => new(wp, c),
-				_ => throw new NotImplementedException()
+				_ => null
 			};
+
+			return coord is not null;
 		}
+
+		coord = null;
+		return false;
+	}
+
+
+	public static NamedCoordinate Concretize(this Dictionary<string, HashSet<ICoordinate>> fixes, string wp, Coordinate? refCoord = null, string? refString = null)
+	{
+		if (TryConcretize(fixes, wp, out var res, refCoord, refString))
+			return res.Value;
 		else
 			throw new Exception($"Could not resolve waypoint {wp} without context.");
 	}
@@ -1011,32 +1036,13 @@ public static class Extensions
 			throw new Exception($"Could not resolve waypoint {wp} without context.");
 	}
 
-	public static (Coordinate Reference, decimal Variation) GetLocalMagneticVariation(this Dictionary<string, HashSet<Navaid>> navaids, Coordinate refCoord)
-	{
-		for (int maxDistance = 50; maxDistance < 250; maxDistance += 50)
-			foreach (Navaid n in navaids.Values.SelectMany(ns => ns.Where(na => refCoord.DistanceTo(na.Position) < maxDistance)))
-				if (n.MagneticVariation is not null)
-					return (n.Position, n.MagneticVariation.Value);
+	public static (Coordinate Reference, decimal Variation) GetLocalMagneticVariation(this Dictionary<string, HashSet<Navaid>> navaids, Coordinate refCoord) =>
+		navaids.Values.SelectMany(ns => ns).OrderBy(na => refCoord.DistanceTo(na.Position)).Where(n => n.MagneticVariation is not null).Select(n => (n.Position, n.MagneticVariation!.Value)).First();
 
-		throw new Exception("Magnetic variation not found. Where the hell are you?");
-	}
-
-	public static (ICoordinate Reference, decimal Variation) GetLocalMagneticVariation(this Dictionary<string, Aerodrome> aerodromes, Coordinate refCoord)
-	{
-		for (int maxDistance = 50; maxDistance < 250; maxDistance += 50)
-			foreach (Aerodrome ad in aerodromes.Values.Where(a => refCoord.DistanceTo(a.Location.GetCoordinate()) < maxDistance))
-				switch (ad)
-				{
-					case Airport ap:
-						return (ap.Location, ap.MagneticVariation);
-
-					case Heliport hp:
-						return (hp.Location, hp.MagneticVariation);
-
-					default:
-						continue;
-				}
-
-		throw new Exception("Magnetic variation not found. Where the hell are you?");
-	}
+	public static (ICoordinate Reference, decimal Variation) GetLocalMagneticVariation(this Dictionary<string, Aerodrome> aerodromes, Coordinate refCoord) =>
+		aerodromes.Values.OrderBy(a => refCoord.DistanceTo(a.Location.GetCoordinate())) switch {
+			Airport ap => (ap.Location, ap.MagneticVariation),
+			Heliport hp => (hp.Location, hp.MagneticVariation),
+			_ => throw new NotImplementedException()
+		};
 }

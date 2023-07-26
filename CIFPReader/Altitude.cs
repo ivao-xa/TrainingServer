@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace CIFPReader;
 
@@ -15,7 +10,7 @@ public abstract record Altitude(int Feet)
 	public abstract AltitudeMSL ToMSL();
 
 	public virtual bool Equals(Altitude? other) => other is not null && other.GetHashCode() == GetHashCode();
-	public override int GetHashCode() => ToMSL().Feet;
+	public override int GetHashCode() => this is AltitudeAGL a && a.GroundElevation is null ? $"SFC + {a.Feet}".GetHashCode() : ToMSL().Feet;
 
 	public static readonly Altitude MinValue = new AltitudeMSL(int.MinValue);
 	public static readonly Altitude MaxValue = new AltitudeMSL(int.MaxValue);
@@ -52,7 +47,7 @@ public abstract record Altitude(int Feet)
 				reader.Read();
 				int feet = reader.GetInt32();
 				reader.Read();
-				int grndElev = reader.GetInt32();
+				int? grndElev = reader.TokenType == JsonTokenType.Null ? null : reader.GetInt32();
 				reader.Read();
 
 				if (reader.TokenType is not JsonTokenType.EndArray)
@@ -70,12 +65,12 @@ public abstract record Altitude(int Feet)
 				writer.WriteNumberValue(amsl.Feet);
 			else if (value is AltitudeAGL agl)
 			{
-				if (agl.GroundElevation is null)
-					throw new JsonException();
-
 				writer.WriteStartArray();
 				writer.WriteNumberValue(agl.Feet);
-				writer.WriteNumberValue(agl.GroundElevation.Value);
+				if (agl.GroundElevation is int ge)
+					writer.WriteNumberValue(ge);
+				else
+					writer.WriteNullValue();
 				writer.WriteEndArray();
 			}
 			else

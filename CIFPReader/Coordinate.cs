@@ -18,18 +18,16 @@ public interface ICoordinate : IProcedureEndpoint
 	{
 		public override ICoordinate Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			if (reader.TokenType == JsonTokenType.StartArray)
-			{
-				Utf8JsonReader explorer = reader;
+			if (reader.TokenType != JsonTokenType.StartArray)
+				throw new JsonException();
 
-				explorer.Read();
-				if (explorer.TokenType is JsonTokenType.Number)
-					return JsonSerializer.Deserialize<Coordinate>(ref reader, options);
-				else if (explorer.TokenType is JsonTokenType.String)
-					return JsonSerializer.Deserialize<NamedCoordinate>(ref reader, options);
-				else
-					throw new JsonException();
-			}
+			Utf8JsonReader explorer = reader;
+
+			explorer.Read();
+			if (explorer.TokenType is JsonTokenType.Number)
+				return JsonSerializer.Deserialize<Coordinate>(ref reader, options);
+			else if (explorer.TokenType is JsonTokenType.String)
+				return JsonSerializer.Deserialize<NamedCoordinate>(ref reader, options);
 			else
 				throw new JsonException();
 		}
@@ -147,13 +145,39 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 				dec *= dec < 0 ? -1 : 1;
 
 				int degrees = (int)dec;
-				int minutes = (int)((dec - degrees) * 60);
-				decimal seconds = ((dec - degrees) * 60 - minutes) * 60;
+				dec %= 1;
+				dec *= 60;
+				int minutes = (int)dec;
+				dec %= 1;
+				dec *= 60;
 
-				return $"{degrees:000}{minutes:00}{(int)seconds:00}";
+				return $"{degrees:000}{minutes:00}{(int)dec:00}";
 			}
 
 			return decToDms(Latitude)[1..] + (Latitude < 0 ? 'S' : 'N') + decToDms(Longitude) + (Longitude < 0 ? 'W' : 'E');
+		}
+	}
+
+	[JsonIgnore]
+	public readonly string DMSLeadingDirections
+	{
+		get
+		{
+			static string decToDms(decimal dec)
+			{
+				dec *= dec < 0 ? -1 : 1;
+
+				int degrees = (int)dec;
+				dec %= 1;
+				dec *= 60;
+				int minutes = (int)dec;
+				dec %= 1;
+				dec *= 60;
+
+				return $"{degrees:000}{minutes:00}{(int)(dec * 100):0000}";
+			}
+
+			return (Latitude < 0 ? 'S' : 'N') + decToDms(Latitude)[1..] + (Longitude < 0 ? 'W' : 'E') + decToDms(Longitude);
 		}
 	}
 
@@ -351,7 +375,7 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 	[DebuggerStepThrough]
 	public readonly Coordinate RadialIntersect(Course bearing, Radial radial, decimal tolerance = 0.5m)
 	{
-		if (radial.Station.Position.GetBearingDistance(this).bearing is not Course originalBearing)
+		if (radial.Station.Position.GetBearingDistance(this).bearing is null)
 			return this;
 
 		Coordinate exploratory = new(Latitude, Longitude);
@@ -421,6 +445,8 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 		else
 			throw new NotImplementedException();
 	}
+
+	public override string ToString() => $"({Latitude:00.000}, {Longitude:000.000})";
 
 	public class CoordinateJsonConverter : JsonConverter<Coordinate>
 	{
