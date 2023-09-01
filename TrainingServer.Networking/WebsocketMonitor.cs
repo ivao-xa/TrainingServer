@@ -27,6 +27,17 @@ public sealed class WebsocketMonitor : IAsyncDisposable
 		_connection = socket;
 	}
 
+	/// <summary>
+	/// Wraps a <see cref="ClientWebSocket"/>.
+	/// </summary>
+	public WebsocketMonitor(ClientWebSocket socket)
+	{
+		if (socket.State != WebSocketState.Open)
+			throw new ArgumentException();
+
+		_connection = (WebSocket)typeof(ClientWebSocket).GetProperty("ConnectedWebSocket", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(socket)!;
+	}
+
 	/// <summary>Begins listening to the <see cref="WebSocket"/>.</summary>
 	public async Task MonitorAsync()
 	{
@@ -46,8 +57,18 @@ public sealed class WebsocketMonitor : IAsyncDisposable
 				{
 					if (InterceptSingleText is not null)
 						InterceptSingleText.Invoke(messageText);
+					else if (OnTextMessageReceived is not null)
+						OnTextMessageReceived.Invoke(messageText);
 					else
-						OnTextMessageReceived?.Invoke(messageText);
+					{
+						while (InterceptSingleText is null)
+							Thread.Yield();
+
+						InterceptSingleText.Invoke(messageText);
+					}
+
+					InterceptSingleText = null;
+
 					messageText = "";
 				}
 			}
@@ -59,8 +80,18 @@ public sealed class WebsocketMonitor : IAsyncDisposable
 				{
 					if (InterceptSingleBinary is not null)
 						InterceptSingleBinary.Invoke(messageBuffer.ToArray());
+					else if (OnBinaryMessageReceived is not null)
+						OnBinaryMessageReceived.Invoke(messageBuffer.ToArray());
 					else
-						OnBinaryMessageReceived?.Invoke(messageBuffer.ToArray());
+					{
+						while (InterceptSingleBinary is null)
+							Thread.Yield();
+
+						InterceptSingleBinary.Invoke(messageBuffer.ToArray());
+					}
+
+					InterceptSingleBinary = null;
+
 					messageBuffer.Clear();
 				}
 			}
@@ -122,7 +153,7 @@ public sealed class WebsocketMonitor : IAsyncDisposable
 	{
 		_kill.Cancel(false);
 
-		if (_connection.CloseStatus is null || _connection.State is not WebSocketState.CloseSent or WebSocketState.Closed)
+		if (_connection.CloseStatus is null && _connection.State is not WebSocketState.CloseSent and not WebSocketState.Closed and not WebSocketState.Aborted)
 			await _connection.CloseAsync(closeStatus, message, CancellationToken.None);
 	}
 }

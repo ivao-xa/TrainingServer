@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 
 using TrainingServer.Networking;
@@ -24,11 +23,6 @@ public class ConnectionManager
 	{
 		Guid guid = Guid.NewGuid();
 		WebsocketMonitor monitor = new(socket);
-		monitor.OnTextMessageReceived += async msg =>
-		{
-			var (sent, data) = _transcoder.SecureUnpack(msg);
-			await monitor.SendAsync($"({sent:s} -> {DateTime.UtcNow:s}) {serverId} recieved: {data.ToJsonString()}");
-		};
 
 		_monitors.TryAdd(guid, monitor);
 
@@ -39,6 +33,13 @@ public class ConnectionManager
 				// Perform the handshake to setup encryption.
 				Task blocker = monitor.MonitorAsync();
 				await SetupAsync(guid);
+
+				monitor.OnTextMessageReceived += async msg =>
+				{
+					var (sent, data) = _transcoder.SecureUnpack(msg);
+					await monitor.SendAsync($"({sent:s} -> {DateTime.UtcNow:s}) {serverId} recieved: {data.ToJsonString()}");
+				};
+
 				await blocker;
 			}
 			catch (ArgumentException ex)
@@ -67,12 +68,6 @@ public class ConnectionManager
 	{
 		Guid guid = Guid.NewGuid();
 		WebsocketMonitor monitor = new(socket);
-		monitor.OnTextMessageReceived += async msg =>
-		{
-			var (sent, data) = _transcoder.SecureUnpack(msg);
-			await monitor.SendAsync($"({sent:s} -> {DateTime.UtcNow:s}) {guid} sent: {data.ToJsonString()}");
-		};
-
 		_monitors.TryAdd(guid, monitor);
 
 		try
@@ -80,6 +75,13 @@ public class ConnectionManager
 			// Perform the handshake to setup encryption.
 			Task blocker = monitor.MonitorAsync();
 			await SetupAsync(guid);
+
+			monitor.OnTextMessageReceived += async msg =>
+			{
+				var (sent, data) = _transcoder.SecureUnpack(msg);
+				await monitor.SendAsync(_transcoder.SecurePack(guid, $"({sent:ss;fff} -> {DateTime.UtcNow:ss;fff}) {guid} sent: {data.ToJsonString()}"));
+			};
+
 			await blocker;
 		}
 		catch (ArgumentException ex)
@@ -89,6 +91,7 @@ public class ConnectionManager
 			if (_monitors.TryRemove(guid, out var sock))
 				await sock.DisposeAsync(WebSocketCloseStatus.ProtocolError, ex.Message);
 		}
+		catch (WebSocketException) { }
 
 		// Disconnect all the connected clients.
 		Task.WaitAll(_connectedServers.Where(kvp => kvp.Value == guid).Select(async kvp => await _monitors[kvp.Key].DisposeAsync(WebSocketCloseStatus.EndpointUnavailable, "The server is shutting down.")).ToArray());
@@ -101,11 +104,15 @@ public class ConnectionManager
 	{
 		// Establish a tunnel.
 		var socket = _monitors[guid];
-		_ = socket.SendAsync(JsonSerializer.Serialize(_transcoder.GetAsymmetricKey()));
-		_transcoder.RegisterKey(guid, await socket.InterceptNextBinaryAsync());
+		var key = _transcoder.GetAsymmetricKey();
+		_ = socket.SendAsync(guid.ToString() + '|' + Convert.ToBase64String(key.Modulus!) + '|' + Convert.ToBase64String(key.Exponent!));
 
+		byte[] symKeyCrypt = (await socket.InterceptNextBinaryAsync())[..256];
+		_transcoder.RegisterKey(guid, _transcoder.AsymmetricDecrypt(symKeyCrypt));
+
+		await Task.Delay(100);
 		// Send an encrypted handshake.
-		_ = _monitors[guid].SendAsync(_transcoder.SecurePack(guid, Array.Empty<byte>()));
+		_ = _monitors[guid].SendAsync(_transcoder.SecurePack(guid, Array.Empty<object>()));
 
 		if (_transcoder.SecureUnpack(await socket.InterceptNextTextAsync()).Data is not JsonArray ja || ja.Any())
 		{

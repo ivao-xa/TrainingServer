@@ -12,7 +12,8 @@ using static System.Text.Encoding;
 public class Transcoder
 {
 	readonly RSA _asymmetricProvider = RSA.Create();
-	Dictionary<Guid, Aes> _symmetricKeys = new();
+	readonly Aes _symmetricProvider = Aes.Create();
+	Dictionary<Guid, Aes>? _symmetricKeys = null;
 
 	/// <summary>Gets the public key for the current instance's asymmetric encryption engine.</summary>
 	public RSAParameters GetAsymmetricKey() => _asymmetricProvider.ExportParameters(false);
@@ -36,6 +37,8 @@ public class Transcoder
 	/// <param name="key">The symmetric AES key securing the tunnel.</param>
 	public void RegisterKey(Guid recipient, byte[] key)
 	{
+		_symmetricKeys ??= new();
+
 		_symmetricKeys[recipient] = Aes.Create();
 		_symmetricKeys[recipient].Key = key;
 	}
@@ -43,7 +46,7 @@ public class Transcoder
 	/// <summary>Unregisters a symmetric encryption tunnal from the current instance.</summary>
 	/// <param name="recipient">The <see cref="Guid"/> associated with the tunnel.</param>
 	/// <returns><see langword="true"/> if the tunnel was successfully deregistered, otherwise <see langword="false"/>.</returns>
-	public bool TryUnregister(Guid recipient) => _symmetricKeys.Remove(recipient);
+	public bool TryUnregister(Guid recipient) => _symmetricKeys?.Remove(recipient) ?? throw new InvalidOperationException("Cannot deregister a client secure tunnel when in client mode.");
 
 	/// <summary>Encrypts the given <see cref="string"/> using the key asssociated with the provided <see cref="Guid"/>'s tunnel.</summary>
 	/// <param name="recipient">The <see cref="Guid"/> associated with a registered tunnel.</param>
@@ -59,7 +62,9 @@ public class Transcoder
 	/// <exception cref="ArgumentException">The given <paramref name="recipient"/> has not been registered. <seealso cref="RegisterKey(Guid, byte[])"/></exception>
 	public byte[] SymmetricEncrypt(Guid recipient, byte[] data)
 	{
-		if (!_symmetricKeys.TryGetValue(recipient, out var crypt))
+		Aes? crypt = _symmetricProvider;
+
+		if (_symmetricKeys is not null && !_symmetricKeys.TryGetValue(recipient, out crypt))
 			throw new ArgumentException($"No tunnel set up with {recipient}.", nameof(recipient));
 
 		crypt.GenerateIV();
@@ -81,7 +86,9 @@ public class Transcoder
 	/// <exception cref="ArgumentException">The given <paramref name="recipient"/> has not been registered. <seealso cref="RegisterKey(Guid, byte[])"/></exception>
 	public byte[] SymmetricDecrypt(Guid recipient, byte[] data)
 	{
-		if (!_symmetricKeys.TryGetValue(recipient, out var crypt))
+		Aes? crypt = _symmetricProvider;
+
+		if (_symmetricKeys is not null && !_symmetricKeys.TryGetValue(recipient, out crypt))
 			throw new ArgumentException($"No tunnel set up with {recipient}.", nameof(recipient));
 
 		return crypt.DecryptCbc(data[crypt.IV.Length..], data[..crypt.IV.Length]);
@@ -94,6 +101,11 @@ public class Transcoder
 	/// <exception cref="CryptographicException">The message could not be sensibly decoded with the given tunnel's key.</exception>
 	public (DateTimeOffset Time, JsonNode Data) SecureUnpack(string message)
 	{
+		if (message.Length < 2 || !message.Contains('}'))
+			throw new ArgumentException($"Cannot deserialize message {message}.", nameof(message));
+
+		message = message[..(message.IndexOf("data") + message[message.IndexOf("data")..].IndexOf('}') + 1)];
+
 		if (JsonNode.Parse(message) is not JsonObject jo)
 			throw new ArgumentException($"Cannot deserialize message {message}.", nameof(message));
 
