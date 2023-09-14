@@ -13,7 +13,8 @@ namespace Airbridge;
 
 public class Plugin : IServerPlugin, IPlugin
 {
-	public string FriendlyName => "Automatic Airbridge Tool";
+
+    public string FriendlyName => "Automatic Airbridge Tool";
 
 	public string Maintainer => "Wes (644899)";
 
@@ -188,49 +189,90 @@ public class Plugin : IServerPlugin, IPlugin
 
 			while (!token.IsCancellationRequested)
 			{
+				//random altitude between minimum and maximum altitude given.
 				int alt = Random.Shared.Next(data.Altitude.Min / 10, data.Altitude.Max / 10 + 1) * 10;
-				uint speed = (uint)Random.Shared.Next(
-					alt switch
-					{
-						>= 500 => 35,
-						>= 180 => 25,
-						_ => 8
-					},
-					alt switch
-					{
-						>= 600 => 120,
-						>= 350 => 57,
-						>= 180 => 40,
-						_ => 25
-					} + 1
-				) * 10;
+				// set speed
+				uint speed = 250;
+                //uint speed = (uint)Random.Shared.Next(
+                //	alt switch
+                //	{
+                //		>= 500 => 35,
+                //		>= 180 => 25,
+                //		_ => 8
+                //	},
+                //	alt switch
+                //	{
+                //		>= 600 => 120,
+                //		>= 350 => 57,
+                //		>= 180 => 40,
+                //		_ => 25
+                //	} + 1
+                //) * 10;
 
-				decimal dy = data.Origin.Item2.Latitude - data.Destination.Item2.Latitude,
+                decimal dy = data.Origin.Item2.Latitude - data.Destination.Item2.Latitude,
 					    dx = data.Origin.Item2.Longitude - data.Destination.Item2.Longitude;
 
 				IAircraft? ac = null;
-				while (ac is null)
-					// Keep trying until you get a workable callsign.
+
+
+                //Select callsign from file
+                List<string> callsignPrefixList = new List<string>();
+                string PrefixfilePath = "config/callsignPrefixes.txt";
+                if (File.Exists(PrefixfilePath))
+                {
+                    callsignPrefixList.AddRange(File.ReadLines(PrefixfilePath));
+                }
+                else
+                {
+                    Console.WriteLine("File not found: " + PrefixfilePath);
+                    return; // Exit the program if the file is not found
+                }
+                Random random = new Random();
+                int randomIndex = random.Next(0, callsignPrefixList.Count);
+                string callsignPrefix = callsignPrefixList[randomIndex];
+
+
+
+                //select aircraft type from file
+                List<string> acTypeList = new List<string>();
+                string filePath = "config/aircraftTypes.txt";
+                if (File.Exists(filePath))
+                {
+                    acTypeList.AddRange(File.ReadLines(filePath));
+                }
+                else
+                {
+                    Console.WriteLine("File not found: " + filePath);
+                    return;
+                }
+                Random randomAcType = new Random();
+                int randomAcTypeIndex = randomAcType.Next(0, acTypeList.Count);
+                string acType = acTypeList[randomAcTypeIndex];
+
+
+                // Create aircraft and flightplan
+                while (ac is null)
 					ac = _server!.SpawnAircraft(
-						"BOT" + new string(Enumerable.Range(0, Random.Shared.Next(0, 4)).Select(_ => Random.Shared.Next(0, 10).ToString().Single()).Prepend(Random.Shared.Next(1, 10).ToString().Single()).ToArray()),
-						new('I', 'S', "1/UNKN/?-?/?", "N" + speed.ToString("#000"), data.Origin.Item1, DateTime.UtcNow, DateTime.UtcNow, (alt < 180 ? "A" : "F") + alt.ToString("000"), data.Destination.Item1, 3, 0, 4, 0, "", "CS/BOT RMK/Airbridge bot", string.Join(' ', data.Route!.Select(i => i.Item1))),
+
+                        callsignPrefix + new string(Enumerable.Range(0, Random.Shared.Next(0, 4)).Select(_ => Random.Shared.Next(0, 10).ToString().Single()).Prepend(Random.Shared.Next(1, 10).ToString().Single()).ToArray()),
+						new('I', 'S', acType + "-?/?", "N" + speed.ToString("#000"), data.Origin.Item1, DateTime.UtcNow, DateTime.UtcNow, (alt < 180 ? "A" : "F") + alt.ToString("000"), data.Destination.Item1, 3, 0, 4, 0, "", "SEL/ABCD", string.Join(' ', data.Route!.Select(i => i.Item1))),
 						new() { Latitude = (double)data.Origin.Item2.Latitude, Longitude = (double)data.Origin.Item2.Longitude },
 						(float?)data.Origin.Item2.GetBearingDistance(data.Destination.Item2).bearing?.Degrees ?? 0f, // Rough approx of starting heading. Actual aircraft logic will correct this quickly.
-						Math.Min(speed, 100),
-						Math.Min(alt, 1000)
-					);
+						speed = 250,
+                        alt = data.Altitude.Min
+                    );;
 
-				// Spawn the aircraft and set its initial altitude and speed restrictions
+				// Spawn the aircraft and set its initial altitude, climb rate, and speed restrictions
 				spawnedAircraft.Add(ac);
-				ac.RestrictAltitude(alt * 100, alt * 100, (uint)Random.Shared.Next(1000, 3001));
-				ac.RestrictSpeed(Math.Min(200, speed), Math.Min(200, speed), 2.5f); // Accelerate up to 200kts below 10k
+				ac.RestrictAltitude(alt * 100, alt * 100, (uint)Random.Shared.Next(1800, 2200));
+				ac.RestrictSpeed(Math.Min(250, speed), Math.Min(250, speed), 2.5f); // Accelerate up to 250 below 10k
 
 				// Wait until above 10000 to set high speed.
-				if (alt >= 100)
-				{
-					try { _ = Task.Run(async () => { while (!token.IsCancellationRequested && ac.Altitude < 10000) await Task.Delay(500, token); ac.RestrictSpeed(speed, speed, 2.5f); }, token); }
-					catch (TaskCanceledException) { break; }
-				}
+				//	if (alt >= 100)
+				//	{
+				//		try { _ = Task.Run(async () => { while (!token.IsCancellationRequested && ac.Altitude < 10000) await Task.Delay(500, token); ac.RestrictSpeed(speed, speed, 2.5f); }, token); }
+				//		catch (TaskCanceledException) { break; }
+				//	}
 
 				Regex headingExpr = new(@"^H\d\d\d$", RegexOptions.Compiled);
 				foreach (var fix in data.Route)
@@ -244,21 +286,49 @@ public class Plugin : IServerPlugin, IPlugin
 
 				CifpCoord endpoint = data.Route.Any() ? data.Route.Last().Item2 : data.Destination.Item2;
 
-				if (File.Exists("api.key"))
-				{
-					var req = await cli.PostAsJsonAsync($"https://api.ivao.aero/v2/airports/{data.Origin.Item1}/squawks/generate?apiKey={File.ReadAllText("api.key").Trim()}", new SquawkRequest() { originIcao = data.Origin.Item1, destinationIcao = data.Destination.Item1 });
-					var rep = await req.Content.ReadFromJsonAsync<SquawkReply>();
-					ac.Squawk = ushort.Parse(rep?.code ?? "2000");
-				}
+                //SQ Codes from API
+                //	if (File.Exists("config/apikey.txt"))
+                //	{
+                //		var req = await cli.PostAsJsonAsync($"https://api.ivao.aero/v2/airports/{data.Origin.Item1}/squawks/generate?apiKey={File.ReadAllText("api.key").Trim()}", new SquawkRequest() { originIcao = data.Origin.Item1, destinationIcao = data.Destination.Item1 });
+                //		var rep = await req.Content.ReadFromJsonAsync<SquawkReply>();
+                //		ac.Squawk = ushort.Parse(rep?.code ?? "1000");
+                //	}
 
-				// Kill it when it gets within 0.03 deg Euclidean distance from endpoint.
-				try { _ = Task.Run(async () => { while (endpoint.DistanceTo(new((decimal)ac.Position.Latitude, (decimal)ac.Position.Longitude)) > 0.03m) await Task.Delay(500, token); ac.Kill(); }, token); }
+                //SQ Codes (random)
+                Random randomSq = new Random();
+                int fourDigitNumber = 0;
+                for (int i = 0; i < 4; i++)
+                {
+                    int digit = randomSq.Next(0, 8);
+                    fourDigitNumber = fourDigitNumber * 10 + digit;
+                }
+                ushort ushortNumber = (ushort)fourDigitNumber;
+                ac.Squawk = ushortNumber;
+
+                // Kill it when it gets within 0.03 deg Euclidean distance from endpoint.
+                try { _ = Task.Run(async () => { while (endpoint.DistanceTo(new((decimal)ac.Position.Latitude, (decimal)ac.Position.Longitude)) > 0.03m) await Task.Delay(500, token); ac.Kill(); }, token); }
 				catch (TaskCanceledException) { break; }
 
-				// Pause randomly before spawning another aircraft.
-				try { await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(60, 300)), token); }
-				catch (TaskCanceledException) { break; }
-			}
+                // Pause randomly before spawning another aircraft.
+                string filePathDelay = "config/spawnDelay.txt";
+                if (File.Exists(filePathDelay))
+                {
+                    string delayString = File.ReadAllText(filePathDelay);
+                    if (int.TryParse(delayString, out int delayInSeconds))
+                    {
+                        try { await Task.Delay(TimeSpan.FromSeconds(delayInSeconds), token); }
+                        catch (TaskCanceledException) { break; }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid delay duration format in the file.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("File not found: " + filePathDelay);
+                }
+            }
 
 			foreach (var ac in spawnedAircraft)
 				ac.Kill();
