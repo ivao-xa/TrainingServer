@@ -301,6 +301,11 @@ public class Plugin : IServerPlugin, IPlugin
                 {
                     int digit = randomSq.Next(0, 8);
                     fourDigitNumber = fourDigitNumber * 10 + digit;
+                    if (i == 3 && (fourDigitNumber == 2000 || fourDigitNumber == 1200 || fourDigitNumber == 7000 || fourDigitNumber == 7500 || fourDigitNumber == 7600 || fourDigitNumber == 7700))
+                    {
+                        i = 0;
+                        fourDigitNumber = 0;
+                    }
                 }
                 ushort ushortNumber = (ushort)fourDigitNumber;
                 ac.Squawk = ushortNumber;
