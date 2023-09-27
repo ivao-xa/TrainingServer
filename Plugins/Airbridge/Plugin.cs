@@ -71,7 +71,7 @@ public class Plugin : IServerPlugin, IPlugin
 		IAircraft? query = null;
 		for (int suffix = 0; query is null; ++suffix)
 			query = server.SpawnAircraft(
-				callsign: "BRIDGE LOADER" + (suffix == 0 ? "" : " " + suffix),
+				callsign: "SEED" + (suffix == 0 ? "" : " " + suffix),
 				flightplan: new('?', '?', "1/UNKN/?-?/?", "??", "ZZZZ", new(), new(), "A000", "ZZZZ", 0, 0, 0, 0, "ZZZZ", "", ""),
 				startingPosition: new() { Latitude = 0, Longitude = 0 },
 				startingCourse: 0f, 0, 0
@@ -190,9 +190,9 @@ public class Plugin : IServerPlugin, IPlugin
 			while (!token.IsCancellationRequested)
 			{
 				//random altitude between minimum and maximum altitude given.
-				int alt = Random.Shared.Next(data.Altitude.Min / 10, data.Altitude.Max / 10 + 1) * 10;
-				// set speed
-				uint speed = 250;
+				int alt = Random.Shared.Next(data.Altitude.Min); //int alt = Random.Shared.Next(data.Altitude.Min / 10, data.Altitude.Max / 10 + 1) * 10;
+                // set speed
+                uint speed = 250;
                 //uint speed = (uint)Random.Shared.Next(
                 //	alt switch
                 //	{
@@ -249,32 +249,60 @@ public class Plugin : IServerPlugin, IPlugin
                 int randomAcTypeIndex = randomAcType.Next(0, acTypeList.Count);
                 string acType = acTypeList[randomAcTypeIndex];
 
+                //select speed from file
+                List<string> speedList = new List<string>();
+                string SpeedfilePath = "config/speed.txt";
+                if (File.Exists(SpeedfilePath))
+                {
+                    speedList.AddRange(File.ReadLines(SpeedfilePath));
+                }
+                else
+                {
+                    Console.WriteLine("File not found: " + SpeedfilePath);
+                    return;
+                }
+                Random setRandomSpeed = new Random();
+                int randomSpeedIndex = setRandomSpeed.Next(0, speedList.Count);
+                string randomSpeedString = speedList[randomSpeedIndex];
+                if (uint.TryParse(randomSpeedString, out uint randomSpeed))
+                {
+                    // The parsing was successful, and randomSpeed is now a uint.
+                }
+                else
+                {
+                    Console.WriteLine("Failed to parse randomSpeed as a uint.");
+                }
+
 
                 // Create aircraft and flightplan
                 while (ac is null)
 					ac = _server!.SpawnAircraft(
 
-                        callsignPrefix + new string(Enumerable.Range(0, Random.Shared.Next(0, 4)).Select(_ => Random.Shared.Next(0, 10).ToString().Single()).Prepend(Random.Shared.Next(1, 10).ToString().Single()).ToArray()),
+						callsignPrefix + new string(Enumerable.Range(0, Random.Shared.Next(0, 4)).Select(_ => Random.Shared.Next(0, 10).ToString().Single()).Prepend(Random.Shared.Next(1, 10).ToString().Single()).ToArray()),
 						new('I', 'S', acType + "-?/?", "N" + speed.ToString("#000"), data.Origin.Item1, DateTime.UtcNow, DateTime.UtcNow, (alt < 180 ? "A" : "F") + alt.ToString("000"), data.Destination.Item1, 3, 0, 4, 0, "", "SEL/ABCD", string.Join(' ', data.Route!.Select(i => i.Item1))),
 						new() { Latitude = (double)data.Origin.Item2.Latitude, Longitude = (double)data.Origin.Item2.Longitude },
 						(float?)data.Origin.Item2.GetBearingDistance(data.Destination.Item2).bearing?.Degrees ?? 0f, // Rough approx of starting heading. Actual aircraft logic will correct this quickly.
-						speed = 250,
-                        alt = data.Altitude.Min
-                    );;
+						speed = randomSpeed,
+						alt = data.Altitude.Min * 100
+					);
 
-				// Spawn the aircraft and set its initial altitude, climb rate, and speed restrictions
-				spawnedAircraft.Add(ac);
-				ac.RestrictAltitude(alt * 100, alt * 100, (uint)Random.Shared.Next(1800, 2200));
-				ac.RestrictSpeed(Math.Min(250, speed), Math.Min(250, speed), 2.5f); // Accelerate up to 250 below 10k
+                // Spawn the aircraft and set its initial altitude, climb rate, and speed restrictions
+                // spawnedAircraft.Add(ac);
+                // ac.RestrictAltitude(alt * 100, alt * 100, (uint)Random.Shared.Next(1800, 2200));
+                // ac.RestrictSpeed(Math.Min(250, speed), Math.Min(250, speed), 2.5f); // Accelerate up to 250 below 10k
 
-				// Wait until above 10000 to set high speed.
-				//	if (alt >= 100)
-				//	{
-				//		try { _ = Task.Run(async () => { while (!token.IsCancellationRequested && ac.Altitude < 10000) await Task.Delay(500, token); ac.RestrictSpeed(speed, speed, 2.5f); }, token); }
-				//		catch (TaskCanceledException) { break; }
-				//	}
+                spawnedAircraft.Add(ac);
+                ac.RestrictAltitude(alt, alt, (uint)Random.Shared.Next(1800, 2200));
+                // ac.RestrictSpeed(Math.Min(250, speed), Math.Min(250, speed), 2.5f); // Accelerate up to 250 below 10k
 
-				Regex headingExpr = new(@"^H\d\d\d$", RegexOptions.Compiled);
+                // Wait until above 10000 to set high speed.
+                //	if (alt >= 100)
+                //	{
+                //		try { _ = Task.Run(async () => { while (!token.IsCancellationRequested && ac.Altitude < 10000) await Task.Delay(500, token); ac.RestrictSpeed(speed, speed, 2.5f); }, token); }
+                //		catch (TaskCanceledException) { break; }
+                //	}
+
+                Regex headingExpr = new(@"^H\d\d\d$", RegexOptions.Compiled);
 				foreach (var fix in data.Route)
 					if (headingExpr.IsMatch(fix.Item1))
 					{
