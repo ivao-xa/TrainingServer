@@ -19,6 +19,7 @@ public partial class FrmMain : Form
 		BtnStart.Enabled = true;
 		server = new();
 		manager = new(server);
+		manager.OnPluginsListUpdated += Manager_OnPluginsListUpdated;
 	}
 
 	WebsocketMonitor? socket;
@@ -33,7 +34,6 @@ public partial class FrmMain : Form
 		{
 			case "Connect":
 				BtnStart.Enabled = false;
-
 				Task.Run(ServerConnectedAsync);
 				break;
 
@@ -173,6 +173,29 @@ public partial class FrmMain : Form
 			socket?.DisposeAsync(WebSocketCloseStatus.NormalClosure, "Good day!").AsTask().RunSynchronously();
 	}
 
+	private void Manager_OnPluginsListUpdated()
+	{
+		if (InvokeRequired)
+		{
+			Invoke(Manager_OnPluginsListUpdated);
+			return;
+		}
+
+		ClbPlugins.BeginUpdate();
+		ClbPlugins.Items.Clear();
+
+		foreach (var kvp in manager._loadedPlugins)
+			ClbPlugins.Items.Add(kvp.Key, kvp.Value);
+
+		ClbPlugins.EndUpdate();
+	}
+
 	[GeneratedRegex(@"^(\d{8})-0000-0000-0000-000000000000$", RegexOptions.Compiled | RegexOptions.Singleline)]
 	private static partial Regex FrequencyGuidRegex();
+
+	private void ClbPlugins_ItemCheck(object sender, ItemCheckEventArgs e)
+	{
+		IPlugin modifiedPlugin = (IPlugin)((CheckedListBox)sender).Items[e.Index];
+		manager._loadedPlugins[modifiedPlugin] = e.NewValue == CheckState.Checked;
+	}
 }

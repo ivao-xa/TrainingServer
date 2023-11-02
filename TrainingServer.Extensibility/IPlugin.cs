@@ -15,6 +15,8 @@ public interface IPlugin
 	/// <summary>The plugin maintainer. Use format "Name (VID)".</summary>
 	public string Maintainer { get; }
 
+	public string ToString() => $"{Name} ({Description})";
+
 	/// <summary>Called whenever a text message is received.</summary>
 	/// <param name="sender">The sender of the message.</param>
 	/// <param name="recipient">The recipient of the message.</param>

@@ -30,6 +30,7 @@ partial class FrmMain
 	{
 		tableLayoutPanel1 = new TableLayoutPanel();
 		BtnStart = new Button();
+		ClbPlugins = new CheckedListBox();
 		tableLayoutPanel1.SuspendLayout();
 		SuspendLayout();
 		// 
@@ -39,6 +40,7 @@ partial class FrmMain
 		tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 80F));
 		tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
 		tableLayoutPanel1.Controls.Add(BtnStart, 1, 1);
+		tableLayoutPanel1.Controls.Add(ClbPlugins, 0, 0);
 		tableLayoutPanel1.Dock = DockStyle.Fill;
 		tableLayoutPanel1.Location = new Point(0, 0);
 		tableLayoutPanel1.Name = "tableLayoutPanel1";
@@ -60,6 +62,16 @@ partial class FrmMain
 		BtnStart.UseVisualStyleBackColor = true;
 		BtnStart.Click += BtnStart_Click;
 		// 
+		// ClbPlugins
+		// 
+		ClbPlugins.Dock = DockStyle.Fill;
+		ClbPlugins.FormattingEnabled = true;
+		ClbPlugins.Location = new Point(3, 3);
+		ClbPlugins.Name = "ClbPlugins";
+		ClbPlugins.Size = new Size(634, 399);
+		ClbPlugins.TabIndex = 1;
+		ClbPlugins.ItemCheck += ClbPlugins_ItemCheck;
+		// 
 		// FrmMain
 		// 
 		AutoScaleDimensions = new SizeF(7F, 15F);
@@ -77,4 +89,5 @@ partial class FrmMain
 
 	private TableLayoutPanel tableLayoutPanel1;
 	private Button BtnStart;
+	private CheckedListBox ClbPlugins;
 }
