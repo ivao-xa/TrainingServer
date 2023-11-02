@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Text.Json.Nodes;
 
@@ -13,7 +14,7 @@ using TrainingServer.Networking;
 public class ConnectionManager
 {
 	private readonly ConcurrentDictionary<Guid, WebsocketMonitor> _monitors = new();
-	private readonly ConcurrentDictionary<Guid, Guid> _connectedServers = new();
+	private readonly ConcurrentBag<ServerInfo> _servers = new();
 	private readonly Transcoder _transcoder = new();
 
 	/// <summary>Accepts an incoming client websocket connection and establishes a secure tunnel.</summary>
@@ -36,8 +37,10 @@ public class ConnectionManager
 
 				monitor.OnTextMessageReceived += async msg =>
 				{
-					var (sent, data) = _transcoder.SecureUnpack(msg);
-					await monitor.SendAsync($"({sent:s} -> {DateTime.UtcNow:s}) {serverId} recieved: {data.ToJsonString()}");
+					var (sent, recipient, data) = _transcoder.SecureUnpack(msg);
+
+					if (_monitors.TryGetValue(recipient, out var rSock))
+						await rSock.SendAsync(_transcoder.SecurePack(server, recipient, msg));
 				};
 
 				await blocker;
@@ -58,8 +61,6 @@ public class ConnectionManager
 			else
 				await m.DisposeAsync();
 		}
-
-		_connectedServers.TryRemove(guid, out var _);
 	}
 
 	/// <summary>Accepts an incoming server websocket connection and establishes a secure tunnel.</summary>
@@ -75,11 +76,16 @@ public class ConnectionManager
 			// Perform the handshake to setup encryption.
 			Task blocker = monitor.MonitorAsync();
 			await SetupAsync(guid);
+			_servers.Add(new(guid, _transcoder.SecureUnpack(await monitor.InterceptNextTextAsync()).Data.ToString()));
 
 			monitor.OnTextMessageReceived += async msg =>
 			{
-				var (sent, data) = _transcoder.SecureUnpack(msg);
-				await monitor.SendAsync(_transcoder.SecurePack(guid, $"({sent:ss;fff} -> {DateTime.UtcNow:ss;fff}) {guid} sent: {data.ToJsonString()}"));
+				var (sent, recipient, data) = _transcoder.SecureUnpack(msg);
+
+				if (recipient == guid)
+					await Task.WhenAll(_monitors.Where(kvp => kvp.Key != guid).AsParallel().Select(kvp => kvp.Value.SendAsync(_transcoder.SecurePack(guid, recipient, msg))));
+				else if (_monitors.TryGetValue(recipient, out var rSock))
+					await rSock.SendAsync(_transcoder.SecurePack(guid, recipient, msg));
 			};
 
 			await blocker;
@@ -93,12 +99,11 @@ public class ConnectionManager
 		}
 		catch (WebSocketException) { }
 
-		// Disconnect all the connected clients.
-		Task.WaitAll(_connectedServers.Where(kvp => kvp.Value == guid).Select(async kvp => await _monitors[kvp.Key].DisposeAsync(WebSocketCloseStatus.EndpointUnavailable, "The server is shutting down.")).ToArray());
-
 		if (_monitors.TryRemove(guid, out var m))
 			await m.DisposeAsync();
 	}
+
+	public IEnumerable<ServerInfo> ListServers() => _servers.AsEnumerable();
 
 	private async Task SetupAsync(Guid guid)
 	{
@@ -112,7 +117,7 @@ public class ConnectionManager
 
 		await Task.Delay(100);
 		// Send an encrypted handshake.
-		_ = _monitors[guid].SendAsync(_transcoder.SecurePack(guid, Array.Empty<object>()));
+		_ = _monitors[guid].SendAsync(_transcoder.SecurePack(guid, guid, Array.Empty<object>()));
 
 		if (_transcoder.SecureUnpack(await socket.InterceptNextTextAsync()).Data is not JsonArray ja || ja.Any())
 		{

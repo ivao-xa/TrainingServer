@@ -42,4 +42,6 @@ app.Use(async (context, next) =>
 		await next(context);
 });
 
+app.MapGet("/servers", (ConnectionManager manager) => manager.ListServers());
+
 app.Run();

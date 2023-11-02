@@ -11,7 +11,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TrainingServer.Networking",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TrainingServer.Connector", "TrainingServer.Connector\TrainingServer.Connector.csproj", "{0788E2C1-D65F-46E8-B4E2-46F0B1F4C0AC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrainingServer.Hub", "TrainingServer.Hub\TrainingServer.Hub.csproj", "{3EF447C6-2900-4959-8AFE-C8B353595E83}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TrainingServer.Hub", "TrainingServer.Hub\TrainingServer.Hub.csproj", "{3EF447C6-2900-4959-8AFE-C8B353595E83}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{2C60B149-4272-4C05-8BE8-FBBBDC510C31}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

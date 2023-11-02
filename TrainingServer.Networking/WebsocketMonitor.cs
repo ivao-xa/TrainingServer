@@ -33,7 +33,7 @@ public sealed class WebsocketMonitor : IAsyncDisposable
 	public WebsocketMonitor(ClientWebSocket socket)
 	{
 		if (socket.State != WebSocketState.Open)
-			throw new ArgumentException();
+			throw new ArgumentException("Cannot use unopened websocket.", nameof(socket));
 
 		_connection = (WebSocket)typeof(ClientWebSocket).GetProperty("ConnectedWebSocket", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(socket)!;
 	}

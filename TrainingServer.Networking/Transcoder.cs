@@ -43,6 +43,16 @@ public class Transcoder
 		_symmetricKeys[recipient].Key = key;
 	}
 
+	/// <summary>Registers a new symmetric encryption tunnel to the current instance.</summary>
+	/// <param name="recipient">The <see cref="Guid"/> associated with the tunnel.</param>
+	/// <param name="key">The symmetric AES key securing the tunnel.</param>
+	public void RegisterSecondaryRecipient(Guid recipient, Guid relay)
+	{
+		_symmetricKeys ??= new();
+
+		_symmetricKeys[recipient] = _symmetricKeys[relay];
+	}
+
 	/// <summary>Unregisters a symmetric encryption tunnal from the current instance.</summary>
 	/// <param name="recipient">The <see cref="Guid"/> associated with the tunnel.</param>
 	/// <returns><see langword="true"/> if the tunnel was successfully deregistered, otherwise <see langword="false"/>.</returns>
@@ -73,23 +83,23 @@ public class Transcoder
 	}
 
 	/// <summary>Decrypts a text message received through an encrypted tunnel.</summary>
-	/// <param name="recipient">The <see cref="Guid"/> associated with a registered tunnel.</param>
+	/// <param name="sender">The <see cref="Guid"/> associated with a registered tunnel.</param>
 	/// <param name="data">The ciphered message buffer.</param>
 	/// <returns>The decrypted plaintext.</returns>
-	/// <exception cref="ArgumentException">The given <paramref name="recipient"/> has not been registered. <seealso cref="RegisterKey(Guid, byte[])"/></exception>
-	public string SymmetricDecryptString(Guid recipient, byte[] data) => UTF8.GetString(SymmetricDecrypt(recipient, data));
+	/// <exception cref="ArgumentException">The given <paramref name="sender"/> has not been registered. <seealso cref="RegisterKey(Guid, byte[])"/></exception>
+	public string SymmetricDecryptString(Guid sender, byte[] data) => UTF8.GetString(SymmetricDecrypt(sender, data));
 
 	/// <summary>Decrypts a binary message received through an encrypted tunnel.</summary>
-	/// <param name="recipient">The <see cref="Guid"/> associated with a registered tunnel.</param>
+	/// <param name="sender">The <see cref="Guid"/> associated with a registered tunnel.</param>
 	/// <param name="data">The ciphered message buffer.</param>
 	/// <returns>The decrypted buffer.</returns>
-	/// <exception cref="ArgumentException">The given <paramref name="recipient"/> has not been registered. <seealso cref="RegisterKey(Guid, byte[])"/></exception>
-	public byte[] SymmetricDecrypt(Guid recipient, byte[] data)
+	/// <exception cref="ArgumentException">The given <paramref name="sender"/> has not been registered. <seealso cref="RegisterKey(Guid, byte[])"/></exception>
+	public byte[] SymmetricDecrypt(Guid sender, byte[] data)
 	{
 		Aes? crypt = _symmetricProvider;
 
-		if (_symmetricKeys is not null && !_symmetricKeys.TryGetValue(recipient, out crypt))
-			throw new ArgumentException($"No tunnel set up with {recipient}.", nameof(recipient));
+		if (_symmetricKeys is not null && !_symmetricKeys.TryGetValue(sender, out crypt))
+			throw new ArgumentException($"No tunnel set up with {sender}.", nameof(sender));
 
 		return crypt.DecryptCbc(data[crypt.IV.Length..], data[..crypt.IV.Length]);
 	}
@@ -99,7 +109,7 @@ public class Transcoder
 	/// <returns>The timestamp and JSON data encoded in the message.</returns>
 	/// <exception cref="ArgumentException">The message was not valid.</exception>
 	/// <exception cref="CryptographicException">The message could not be sensibly decoded with the given tunnel's key.</exception>
-	public (DateTimeOffset Time, JsonNode Data) SecureUnpack(string message)
+	public (DateTimeOffset Time, Guid Recipient, JsonNode Data) SecureUnpack(string message)
 	{
 		if (message.Length < 2 || !message.Contains('}'))
 			throw new ArgumentException($"Cannot deserialize message {message}.", nameof(message));
@@ -109,31 +119,60 @@ public class Transcoder
 		if (JsonNode.Parse(message) is not JsonObject jo)
 			throw new ArgumentException($"Cannot deserialize message {message}.", nameof(message));
 
-		if (jo["id"]?.GetValue<Guid>() is not Guid tunnel)
-			throw new ArgumentException($"Cannot identify tunnel from message {message}.", nameof(message));
+		if (jo["r"]?.GetValue<Guid>() is not Guid recipient)
+			throw new ArgumentException($"Cannot identify recipient from message {message}.", nameof(message));
+
+		if (jo["s"]?.GetValue<Guid>() is not Guid sender)
+			throw new ArgumentException($"Cannot identify sender of message {message}.", nameof(message));
 
 		if (jo["time"]?.GetValue<DateTimeOffset>() is not DateTimeOffset time)
 			throw new ArgumentException($"Message {message} is missing required timestamp.", nameof(message));
 
 		if (jo["data"]?.GetValue<string>() is not string cryptedString)
-			return (time, new JsonObject());
+			return (time, recipient, new JsonObject());
 
-		string packet = SymmetricDecryptString(tunnel, System.Convert.FromBase64String(cryptedString));
+		string packet = SymmetricDecryptString(sender, System.Convert.FromBase64String(cryptedString));
 
 		if (JsonNode.Parse(packet) is JsonNode retval)
-			return (time, retval);
+			return (time, recipient, retval);
 		else
 			throw new CryptographicException("The given message could not be sensibly decoded.");
+	}
+
+	/// <summary>Unpacks the metadata from a received message without decrypting.</summary>
+	/// <param name="message">The received message.</param>
+	/// <returns>The timestamp and recipient GUID encoded in the message.</returns>
+	/// <exception cref="ArgumentException">The message was not valid.</exception>
+	public static (DateTimeOffset Time, Guid Recipeint) DetermineRecipient(string message)
+	{
+		if (message.Length < 2 || !message.Contains('}'))
+			throw new ArgumentException($"Cannot deserialize message {message}.", nameof(message));
+
+		message = message[..(message.IndexOf("data") + message[message.IndexOf("data")..].IndexOf('}') + 1)];
+
+		if (JsonNode.Parse(message) is not JsonObject jo)
+			throw new ArgumentException($"Cannot deserialize message {message}.", nameof(message));
+
+		if (jo["r"]?.GetValue<Guid>() is not Guid recipient)
+			throw new ArgumentException($"Cannot identify recipient from message {message}.", nameof(message));
+
+		if (jo["s"]?.GetValue<Guid>() is not Guid)
+			throw new ArgumentException($"Cannot identify sender of message {message}.", nameof(message));
+
+		if (jo["time"]?.GetValue<DateTimeOffset>() is not DateTimeOffset time)
+			throw new ArgumentException($"Message {message} is missing required timestamp.", nameof(message));
+
+		return (time, recipient);
 	}
 
 	/// <summary>Packs a message for a given registered tunnel.</summary>
 	/// <param name="recipient">The <see cref="Guid"/> of the tunnel through which the message will be sent.</param>
 	/// <param name="message">The message to be sent.</param>
 	/// <returns>The encoded message.</returns>
-	public string SecurePack(Guid recipient, object message)
+	public string SecurePack(Guid sender, Guid recipient, object message)
 	{
 		string data = JsonSerializer.Serialize(message);
 		byte[] packet = SymmetricEncryptString(recipient, data);
-		return JsonSerializer.Serialize(new { id = recipient, time = DateTimeOffset.Now, data = System.Convert.ToBase64String(packet) });
+		return JsonSerializer.Serialize(new { s = sender, r = recipient, time = DateTimeOffset.Now, data = System.Convert.ToBase64String(packet) });
 	}
 }

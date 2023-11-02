@@ -68,6 +68,7 @@ partial class FrmMain
 		Controls.Add(tableLayoutPanel1);
 		Name = "FrmMain";
 		Text = "Training Server (Loading)";
+		FormClosing += FrmMain_FormClosing;
 		tableLayoutPanel1.ResumeLayout(false);
 		ResumeLayout(false);
 	}
