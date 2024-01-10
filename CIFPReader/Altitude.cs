@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace CIFPReader;
 
@@ -15,7 +10,7 @@ public abstract record Altitude(int Feet)
 	public abstract AltitudeMSL ToMSL();
 
 	public virtual bool Equals(Altitude? other) => other is not null && other.GetHashCode() == GetHashCode();
-	public override int GetHashCode() => ToMSL().Feet;
+	public override int GetHashCode() => this is AltitudeAGL a && a.GroundElevation is null ? $"SFC + {a.Feet}".GetHashCode() : ToMSL().Feet;
 
 	public static readonly Altitude MinValue = new AltitudeMSL(int.MinValue);
 	public static readonly Altitude MaxValue = new AltitudeMSL(int.MaxValue);
@@ -43,11 +38,44 @@ public abstract record Altitude(int Feet)
 
 	public class AltitudeJsonConverter : JsonConverter<Altitude>
 	{
-		public override Altitude? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-			new AltitudeMSL(reader.GetInt32());
+		public override Altitude? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			if (reader.TokenType is JsonTokenType.Number)
+				return new AltitudeMSL(reader.GetInt32());
+			else if (reader.TokenType is JsonTokenType.StartArray)
+			{
+				reader.Read();
+				int feet = reader.GetInt32();
+				reader.Read();
+				int? grndElev = reader.TokenType == JsonTokenType.Null ? null : reader.GetInt32();
+				reader.Read();
 
-		public override void Write(Utf8JsonWriter writer, Altitude value, JsonSerializerOptions options) =>
-			writer.WriteNumberValue(value.Feet);
+				if (reader.TokenType is not JsonTokenType.EndArray)
+					throw new JsonException();
+
+				return new AltitudeAGL(feet, grndElev);
+			}
+			else
+				throw new JsonException();
+		}
+
+		public override void Write(Utf8JsonWriter writer, Altitude value, JsonSerializerOptions options)
+		{
+			if (value is AltitudeMSL amsl)
+				writer.WriteNumberValue(amsl.Feet);
+			else if (value is AltitudeAGL agl)
+			{
+				writer.WriteStartArray();
+				writer.WriteNumberValue(agl.Feet);
+				if (agl.GroundElevation is int ge)
+					writer.WriteNumberValue(ge);
+				else
+					writer.WriteNullValue();
+				writer.WriteEndArray();
+			}
+			else
+				throw new JsonException();
+		}
 	}
 }
 

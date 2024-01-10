@@ -7,7 +7,7 @@ namespace CIFPReader;
 
 [JsonConverter(typeof(AerodromeJsonSerializer))]
 public abstract record Aerodrome(string Client, string Header,
-	string Identifier, string IATACode, Coordinate Location, decimal MagneticVariation, AltitudeMSL Elevation,
+	string Identifier, string IATACode, ICoordinate Location, decimal MagneticVariation, AltitudeMSL Elevation,
 	Altitude TransitionAlt, FlightLevel TransitionFL, Aerodrome.AirportUsage Usage, string Name,
 	int FileRecordNumber, int Cycle) : RecordLine(Client, Header, FileRecordNumber, Cycle)
 {
@@ -20,8 +20,7 @@ public abstract record Aerodrome(string Client, string Header,
 	}
 
 	public static new RecordLine? Parse(string line) =>
-		(line[4], line[12]) switch
-		{
+		(line[4], line[12]) switch {
 			('P', 'A') => Airport.Parse(line),
 			('P', 'G') => Runway.Parse(line),
 			('H', 'A') => Heliport.Parse(line),
@@ -42,8 +41,7 @@ public abstract record Aerodrome(string Client, string Header,
 			string strVal = reader.GetString() ?? throw new JsonException();
 			RecordLine? baseCall = JsonSerializer.Deserialize<RecordLine>(strVal, options);
 
-			return baseCall?.Header switch
-			{
+			return baseCall?.Header switch {
 				"PA" => JsonSerializer.Deserialize<Airport>(strVal, options),
 				"HA" => JsonSerializer.Deserialize<Heliport>(strVal, options),
 
@@ -71,7 +69,7 @@ public abstract record Aerodrome(string Client, string Header,
 }
 
 public record Airport(string Client,
-	string Identifier, string IATACode, uint MaxRunwayLength, bool IFR, Coordinate Location, decimal MagneticVariation, AltitudeMSL Elevation,
+	string Identifier, string IATACode, uint MaxRunwayLength, bool IFR, ICoordinate Location, decimal MagneticVariation, AltitudeMSL Elevation,
 	Altitude TransitionAlt, FlightLevel TransitionFL, Aerodrome.AirportUsage Usage, string Name,
 	int FileRecordNumber, int Cycle) : Aerodrome(Client, "PA", Identifier, IATACode, Location, MagneticVariation, Elevation,
 												 TransitionAlt, TransitionFL, Usage, Name, FileRecordNumber, Cycle)
@@ -105,14 +103,26 @@ public record Airport(string Client,
 }
 
 public record Runway(string Client,
-	string Airport, string Identifier, uint Length, uint Width, Course Course, Coordinate Endpoint, Altitude TDZE, Altitude TCH,
+	string Airport, string Identifier, uint Length, uint Width, Course Course, ICoordinate Endpoint, Altitude TDZE, Altitude TCH,
 	string? Approach, Runway.RunwayApproachCategory ApproachCategory,
 	int FileRecordNumber, int Cycle) : RecordLine(Client, "PG", FileRecordNumber, Cycle)
 {
 	[JsonIgnore]
 	public string OppositeIdentifier =>
-		((uint.Parse(new string(Identifier.TakeWhile(c => char.IsDigit(c)).ToArray())) + 17) % 36 + 1)
-		+ (Identifier.Last() switch { 'L' => "R", 'R' => "L", 'C' => "C", _ => "" });
+		Identifier switch {
+			"N" => "S",
+			"NE" => "SW",
+			"NW" => "SE",
+			"S" => "N",
+			"SW" => "NE",
+			"SE" => "NW",
+			"E" => "W",
+			"W" => "E",
+			_ when Identifier.Any(char.IsDigit) =>
+				((uint.Parse(new string(Identifier.TakeWhile(char.IsDigit).ToArray())) + 17) % 36 + 1)
+			  + (Identifier.Last() switch { 'L' => "R", 'R' => "L", 'C' => "C", _ => "" }),
+			_ => throw new Exception()
+		};
 
 	public static new Runway Parse(string line)
 	{
@@ -126,7 +136,7 @@ public record Runway(string Client,
 		Check(line, 12, 13, "G");
 
 		string runway = line[13..18].TrimEnd();
-		bool waterway = runway.Length <= 2 && runway.All(c => "NSEW".Contains(c));
+		bool waterway = !runway.StartsWith("RW");
 
 		if (waterway)
 			runway = "RW" + runway;
@@ -188,7 +198,7 @@ public record Runway(string Client,
 }
 
 public record Heliport(string Client,
-	string Identifier, string IATACode, string PadIdentifier, bool IFR, Coordinate Location, decimal MagneticVariation, AltitudeMSL Elevation,
+	string Identifier, string IATACode, string PadIdentifier, bool IFR, ICoordinate Location, decimal MagneticVariation, AltitudeMSL Elevation,
 	Altitude TransitionAlt, FlightLevel TransitionFL, Aerodrome.AirportUsage Usage, string Name,
 	int FileRecordNumber, int Cycle) : Aerodrome(Client, "HA", Identifier, IATACode, Location, MagneticVariation, Elevation,
 												 TransitionAlt, TransitionFL, Usage, Name, FileRecordNumber, Cycle)

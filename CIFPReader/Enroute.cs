@@ -145,15 +145,15 @@ public class Airway : IEnumerable<Airway.AirwayFix>
 	protected Airway(string identifier, AirwayFix[] fixes) =>
 		(Identifier, this.fixes) = (identifier, fixes);
 
-	public Airway(string identifier, AirwayFixLine[] fixLines, Dictionary<string, HashSet<Coordinate>> fixDb)
+	public Airway(string identifier, AirwayFixLine[] fixLines, Dictionary<string, HashSet<ICoordinate>> fixDb)
 	{
 		if (fixLines.Length < 2)
 			throw new ArgumentException("Airway must have at least two points.", nameof(fixLines));
 
-		List<AirwayFix> fs = new() { new(fixLines.First(), fixDb, fixLines.First().Fix.Resolve(fixDb, fixLines[1].Fix)) };
+		List<AirwayFix> fs = new() { new(fixLines.First(), fixDb, fixLines.First().Fix.Resolve(fixDb, fixLines[1].Fix).Position) };
 
 		foreach (AirwayFixLine afl in fixLines.Skip(1))
-			fs.Add(new(afl, fixDb, fs.Last().Point));
+			fs.Add(new(afl, fixDb, fs.Last().Point.GetCoordinate()));
 
 		(Identifier, fixes) = (identifier, fs.ToArray());
 	}
@@ -167,15 +167,15 @@ public class Airway : IEnumerable<Airway.AirwayFix>
 	public record AirwayFix
 	{
 		public string? Name { get; init; }
-		public Coordinate Point { get; init; }
+		public ICoordinate Point { get; init; }
 		public AltitudeRestriction InboundAltitude { get; init; }
 		public AltitudeRestriction OutboundAltitude { get; init; }
 
 		[JsonConstructor]
-		public AirwayFix(string name, Coordinate point, AltitudeRestriction inboundAltitude, AltitudeRestriction outboundAltitude) =>
+		public AirwayFix(string name, ICoordinate point, AltitudeRestriction inboundAltitude, AltitudeRestriction outboundAltitude) =>
 			(Name, Point, InboundAltitude, OutboundAltitude) = (name, point, inboundAltitude, outboundAltitude);
 
-		public AirwayFix(AirwayFixLine fix, Dictionary<string, HashSet<Coordinate>> fixes, Coordinate reference)
+		public AirwayFix(AirwayFixLine fix, Dictionary<string, HashSet<ICoordinate>> fixes, Coordinate reference)
 		{
 			Name = fix.Fix.Name;
 			Point = fix.Fix.Resolve(fixes, reference);

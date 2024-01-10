@@ -6,9 +6,99 @@ using static CIFPReader.ProcedureLine;
 
 namespace CIFPReader;
 
-[JsonConverter(typeof(CoordinateJsonConverter))]
-public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedureEndpoint
+[JsonConverter(typeof(ICoordinateJsonConverter))]
+public interface ICoordinate : IProcedureEndpoint
 {
+	public decimal Latitude { get; }
+	public decimal Longitude { get; }
+
+	public Coordinate GetCoordinate();
+
+	public class ICoordinateJsonConverter : JsonConverter<ICoordinate>
+	{
+		public override ICoordinate Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			if (reader.TokenType != JsonTokenType.StartArray)
+				throw new JsonException();
+
+			Utf8JsonReader explorer = reader;
+
+			explorer.Read();
+			if (explorer.TokenType is JsonTokenType.Number)
+				return JsonSerializer.Deserialize<Coordinate>(ref reader, options);
+			else if (explorer.TokenType is JsonTokenType.String)
+				return JsonSerializer.Deserialize<NamedCoordinate>(ref reader, options);
+			else
+				throw new JsonException();
+		}
+
+		public override void Write(Utf8JsonWriter writer, ICoordinate value, JsonSerializerOptions options)
+		{
+			switch (value)
+			{
+				case Coordinate c:
+					JsonSerializer.Serialize(writer, c, options);
+					break;
+
+				case NamedCoordinate nc:
+					JsonSerializer.Serialize(writer, nc, options);
+					break;
+
+				default:
+					throw new JsonException();
+			}
+		}
+	}
+}
+
+[JsonConverter(typeof(NamedCoordinateJsonConverter))]
+public record struct NamedCoordinate(string Name, Coordinate Position) : IProcedureEndpoint, ICoordinate
+{
+	public readonly decimal Latitude => Position.Latitude;
+	public readonly decimal Longitude => Position.Longitude;
+
+	public readonly Coordinate GetCoordinate() => Position;
+
+	public readonly bool IsConditionReached(PathTermination termination, (Coordinate position, Altitude altitude, dynamic? reference) context, decimal tolerance) => 
+		Position.IsConditionReached(termination, context, tolerance);
+	
+	public class NamedCoordinateJsonConverter : JsonConverter<NamedCoordinate>
+	{
+		public override NamedCoordinate Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			if (reader.TokenType != JsonTokenType.StartArray)
+				throw new JsonException();
+
+			reader.Read();
+			string name = reader.GetString() ?? throw new JsonException();
+			reader.Read();
+			decimal lat = reader.GetDecimal();
+			reader.Read();
+			decimal lon = reader.GetDecimal();
+			reader.Read();
+
+			if (reader.TokenType != JsonTokenType.EndArray)
+				throw new JsonException();
+
+			return new(name, new(lat, lon));
+		}
+
+		public override void Write(Utf8JsonWriter writer, NamedCoordinate value, JsonSerializerOptions options)
+		{
+			writer.WriteStartArray();
+			writer.WriteStringValue(value.Name);
+			writer.WriteNumberValue(decimal.Round(value.Position.Latitude, 6));
+			writer.WriteNumberValue(decimal.Round(value.Position.Longitude, 6));
+			writer.WriteEndArray();
+		}
+	}
+}
+
+[JsonConverter(typeof(CoordinateJsonConverter))]
+public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedureEndpoint, ICoordinate
+{
+	public readonly Coordinate GetCoordinate() => this;
+
 	public Coordinate(string coordData) : this(0, 0)
 	{
 		static decimal dmsToDec(string dms)
@@ -46,7 +136,7 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 	}
 
 	[JsonIgnore]
-	public string DMS
+	public readonly string DMS
 	{
 		get
 		{
@@ -55,15 +145,43 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 				dec *= dec < 0 ? -1 : 1;
 
 				int degrees = (int)dec;
-				int minutes = (int)((dec - degrees) * 60);
-				decimal seconds = ((dec - degrees) * 60 - minutes) * 60;
+				dec %= 1;
+				dec *= 60;
+				int minutes = (int)dec;
+				dec %= 1;
+				dec *= 60;
 
-				return $"{degrees:000}{minutes:00}{(int)seconds:00}";
+				return $"{degrees:000}{minutes:00}{(int)dec:00}";
 			}
 
 			return decToDms(Latitude)[1..] + (Latitude < 0 ? 'S' : 'N') + decToDms(Longitude) + (Longitude < 0 ? 'W' : 'E');
 		}
 	}
+
+	[JsonIgnore]
+	public readonly string DMSLeadingDirections
+	{
+		get
+		{
+			static string decToDms(decimal dec)
+			{
+				dec *= dec < 0 ? -1 : 1;
+
+				int degrees = (int)dec;
+				dec %= 1;
+				dec *= 60;
+				int minutes = (int)dec;
+				dec %= 1;
+				dec *= 60;
+
+				return $"{degrees:000}{minutes:00}{(int)(dec * 100):0000}";
+			}
+
+			return (Latitude < 0 ? 'S' : 'N') + decToDms(Latitude)[1..] + (Longitude < 0 ? 'W' : 'E') + decToDms(Longitude);
+		}
+	}
+
+	public readonly NamedCoordinate Name(string name) => new(name, this);
 
 	/// <summary>
 	/// Returns a <see cref="Coordinate"/> which is a given <paramref name="distance"/> along a given <paramref name="bearing"/> from <see langword="this"/>.
@@ -71,7 +189,7 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 	/// <param name="bearing">The true <see cref="Bearing"/> from <see langword="this"/>.</param>
 	/// <param name="distance">The distance (in nautical miles) from <see langword="this"/>.</param>
 	[DebuggerStepThrough]
-	public Coordinate FixRadialDistance(Course bearing, decimal distance)
+	public readonly Coordinate FixRadialDistance(Course bearing, decimal distance)
 	{
 		// Vincenty's formulae
 		const double a = 3443.918;
@@ -144,7 +262,7 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 	}
 
 	[DebuggerStepThrough]
-	public (TrueCourse? bearing, decimal distance) GetBearingDistance(Coordinate other)
+	public readonly (TrueCourse? bearing, decimal distance) GetBearingDistance(Coordinate other)
 	{
 		if (this == other)
 			return (null, 0);
@@ -226,7 +344,7 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 	}
 
 	[DebuggerStepThrough]
-	public decimal DistanceTo(Coordinate other)
+	public readonly decimal DistanceTo(Coordinate other)
 	{
 		const double R = 3440.07;
 		const double DEG_TO_RAD = Math.Tau / 360;
@@ -248,13 +366,48 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 		return (decimal)(R * c);
 	}
 
+	/// <summary>
+	/// Returns a <see cref="Coordinate"/> which intersects a given <paramref name="radial"/> along a given <paramref name="bearing"/> from <see langword="this"/>.
+	/// </summary>
+	/// <param name="bearing">The true <see cref="Bearing"/> from <see langword="this"/>.</param>
+	/// <param name="radial">The <see cref="Radial"/> to intersect.</param>
+	/// <param name="tolerance">The number of degrees within which the returned <see cref="Coordinate"/> must lie from the true point of intersection.</param>
+	[DebuggerStepThrough]
+	public readonly Coordinate RadialIntersect(Course bearing, Radial radial, decimal tolerance = 0.5m)
+	{
+		if (radial.Station.Position.GetBearingDistance(this).bearing is null)
+			return this;
+
+		Coordinate exploratory = new(Latitude, Longitude);
+
+		void stepTowards()
+		{
+			var data = radial.Station.Position.GetBearingDistance(exploratory);
+			if (data.bearing is null)
+				throw new Exception();
+
+			var stepSize = data.distance * Math.Abs(data.bearing.Angle(radial.Bearing));
+
+			var guess = exploratory.FixRadialDistance(bearing, stepSize);
+			if (radial.Station.Position.DistanceTo(guess) < data.distance)
+				exploratory = guess;
+			else
+				exploratory = exploratory.FixRadialDistance(bearing, -stepSize);
+		}
+
+		while (radial.Station.Position.GetBearingDistance(exploratory).bearing is Course newBearing && Math.Abs(radial.Bearing.Angle(newBearing)) > tolerance)
+			stepTowards();
+
+		return exploratory;
+	}
+
 	public static Coordinate operator +(Coordinate left, Coordinate right) =>
 		new(left.Latitude + right.Latitude, left.Longitude + right.Longitude);
 
 	public static Coordinate operator -(Coordinate left, Coordinate right) =>
 		new(left.Latitude - right.Latitude, left.Longitude - right.Longitude);
 
-	public bool IsConditionReached(PathTermination termination, (Coordinate position, Altitude altitude, dynamic? reference) context, decimal tolerance)
+	public readonly bool IsConditionReached(PathTermination termination, (Coordinate position, Altitude altitude, dynamic? reference) context, decimal tolerance)
 	{
 		(Coordinate position, Altitude _, dynamic? reference) = context;
 		// Termination
@@ -293,6 +446,8 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 			throw new NotImplementedException();
 	}
 
+	public override string ToString() => $"({Latitude:00.000}, {Longitude:000.000})";
+
 	public class CoordinateJsonConverter : JsonConverter<Coordinate>
 	{
 		public override Coordinate Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -315,8 +470,8 @@ public record struct Coordinate(decimal Latitude, decimal Longitude) : IProcedur
 		public override void Write(Utf8JsonWriter writer, Coordinate value, JsonSerializerOptions options)
 		{
 			writer.WriteStartArray();
-			writer.WriteNumberValue(Decimal.Round(value.Latitude, 6));
-			writer.WriteNumberValue(Decimal.Round(value.Longitude, 6));
+			writer.WriteNumberValue(decimal.Round(value.Latitude, 6));
+			writer.WriteNumberValue(decimal.Round(value.Longitude, 6));
 			writer.WriteEndArray();
 		}
 	}

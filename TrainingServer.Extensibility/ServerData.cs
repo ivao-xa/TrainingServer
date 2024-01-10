@@ -27,16 +27,6 @@ namespace TrainingServer
 		/// <summary><see langword="true"/> if <see langword="this"/> <see cref="IAircraft"/> is paused, otherwise <see langword="false"/>.</summary>
 		bool Paused { get; set; }
 
-		/// <summary>Interrupts the current route. Can be resumed later with <see cref="ResumeOwnNavigation"/>.</summary>
-		public void Interrupt();
-
-		/// <summary>Skips the currently executing instruction and continues on.</summary>
-		public void Continue();
-
-		/// <summary>Resumes a route previously <see cref="Interrupt"/>ed.</summary>
-		/// <returns><see langword="true"/> if a previous route was resumed, else <see langword="false"/>.</returns>
-		public bool ResumeOwnNavigation();
-
 		/// <summary>Turns to face a certain course.</summary>
 		/// <param name="trueCourse">The course in degrees true to turn to.</param>
 		/// <param name="turnRate">The turn rate in degrees per second.</param>
@@ -62,7 +52,7 @@ namespace TrainingServer
 		/// <param name="degreesOfArc">The number of degrees of arc (clockwise positive) to fly.</param>
 		void FlyArc(Coordinate arcCenterpoint, float degreesOfArc);
 
-		/// <summary>Flies along the present track until the <see cref="Continue"/> or <see cref="Interrupt"/> command is given.</summary>
+		/// <summary>Flies along the present track until the <see cref="ContinueLnav"/> or <see cref="Interrupt"/> command is given.</summary>
 		void FlyForever();
 
 		/// <summary>Flies until complying with the most recently issued altitude instruction.</summary>
@@ -73,15 +63,46 @@ namespace TrainingServer
 		/// <param name="maximum">The maximum altitude in feet MSL to descend to.</param>
 		/// <param name="climbRate">The vertical velocity magnitude in positive feet per second.</param>
 		void RestrictAltitude(int minimum, int maximum, uint climbRate);
+		
+		/// <summary>Causes the VNAV queue to block until the LNAV queue unblocks.</summary>
+        void PauseAltitudeUntilWaypoint();
 
-		/// <summary>Accelerates or decelerates as needed to comply with the given speed restriction.</summary>
-		/// <param name="minimum">The minimum groundspeed in knots to accelerate to.</param>
-		/// <param name="maximum">The maximum groundspeed in knots to decelerate to.</param>
-		/// <param name="acceleration">The acceleration/deceleration rate in kts per second.</param>
-		void RestrictSpeed(uint minimum, uint maximum, float acceleration);
+        /// <summary>Accelerates or decelerates as needed to comply with the given speed restriction.</summary>
+        /// <param name="minimum">The minimum groundspeed in knots to accelerate to.</param>
+        /// <param name="maximum">The maximum groundspeed in knots to decelerate to.</param>
+        /// <param name="acceleration">The acceleration/deceleration rate in kts per second.</param>
+        void RestrictSpeed(uint minimum, uint maximum, float acceleration);
+
+        /// <summary>Causes the speed queue to block until the LNAV queue unblocks.</summary>
+        void PauseSpeedUntilWaypoint();
+
+		/// <summary>Clears all pending LNAV instructions.</summary>
+		void Interrupt();
+
+        /// <summary>Clears all pending VNAV instructions.</summary>
+        void InterruptVnav();
+
+        /// <summary>Clears all pending speed instructions.</summary>
+        void InterruptSpeed();
+
+        /// <summary>Skips the currently executing LNAV instruction and continues on.</summary>
+        public void ContinueLnav();
+
+        /// <summary>Skips the currently executing VNAV instruction and continues on.</summary>
+        public void ContinueVnav();
+
+        /// <summary>Skips the currently executing speed instruction and continues on.</summary>
+        public void ContinueSpeed();
+
+        /// <summary>Returns to executing the LNAV instructions queued before the most recent call to <see cref="Interrupt"/>.</summary>
+        /// <returns><see langword="true"/> if successful, otherwise no route changes occur and <see langword="false"/> is returned.</returns>
+        bool ResumeOwnNavigation();
 
 		/// <summary>Immediately disconnects the aircraft.</summary>
 		void Kill();
+
+		/// <returns>A JSON representation of the <see cref="IAircraft"/>.</returns>
+		string ToJson();
 
 		/// <summary>Send a PM to the given recipient.</summary>
 		void SendTextMessage(IServer server, string recipient, string message);
@@ -89,7 +110,14 @@ namespace TrainingServer
 
 	public interface IServer
 	{
-		IAircraft? SpawnAircraft(string callsign, Flightplan flightplan, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
+        /// <summary>Spawns an aircraft based on the given parameters.</summary>
+        /// <returns>The <see cref="IAircraft"/> that was spawned if spawning succeeded, else <see langword="null"/> (typically callsign in use).</returns>
+        IAircraft? SpawnAircraft(string callsign, Flightplan flightplan, Coordinate startingPosition, float startingCourse, uint startingSpeed, int startingAltitude);
+
+        /// <summary>Spawns an aircraft from a JSON serialized string</summary>
+        /// <returns>The <see cref="IAircraft"/> that was spawned if spawning succeeded, else <see langword="null"/> (typically callsign in use).</returns>
+		/// <remarks>See also: <seealso cref="IAircraft.ToString()"/></remarks>
+        IAircraft? SpawnAircraft(string json);
 	}
 
 	public struct Coordinate
@@ -126,7 +154,7 @@ namespace TrainingServer
 	}
 
 	public enum TurnDirection
-	{ 
+	{
 		Left,
 		Right
 	}

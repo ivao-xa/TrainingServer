@@ -11,6 +11,7 @@
   </Target>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\CIFPReader\CIFPReader.csproj" />
     <ProjectReference Include="..\..\TrainingServer.Extensibility\TrainingServer.Extensibility.csproj" />
   </ItemGroup>
 

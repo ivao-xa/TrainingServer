@@ -12,8 +12,7 @@ public abstract record ProcedureLine(string Client, string Header,
 	int FileRecordNumber, int Cycle) : RecordLine(Client, Header, FileRecordNumber, Cycle)
 {
 	public static new ProcedureLine? Parse(string line) =>
-		line[12] switch
-		{
+		line[12] switch {
 			'D' => SIDLine.Parse(line),
 			'E' => STARLine.Parse(line),
 			'F' => ApproachLine.Parse(line),
@@ -21,7 +20,7 @@ public abstract record ProcedureLine(string Client, string Header,
 			_ => null
 		};
 
-	public static (PathTermination, IProcedureVia? via) GetPathSegment(string line)
+	public static (PathTermination, IProcedureEndpoint? ep, IProcedureVia? via) GetPathSegment(string line)
 	{
 		PathTermination pathTerm = PathTerminationFromString(line[47..49]);
 
@@ -69,6 +68,7 @@ public abstract record ProcedureLine(string Client, string Header,
 		string arcOriginFixType = line[114..116];
 
 		IProcedureVia? via = null;
+		IProcedureEndpoint? ep = null;
 
 		course ??= stationBearing is not null ? new(stationBearing!.Value, null) : null;
 
@@ -93,38 +93,42 @@ public abstract record ProcedureLine(string Client, string Header,
 				course ?? throw new FormatException("Missing arc endpoint.")
 			);
 
-		return (pathTerm, via);
+		if (pathTerm.HasFlag(PathTermination.UntilDistance))
+			ep = receivedNavaid is null ? new Distance(null, routeDistance!.Value) : new UnresolvedDistance(new(receivedNavaid), routeDistance!.Value);
+		else if (pathTerm.HasFlag(PathTermination.UntilRadial))
+			ep = receivedNavaid is null ? throw new Exception() : new UnresolvedRadial(new(receivedNavaid), new(stationBearing!.Value, null));
+
+		return (pathTerm, ep, via);
 	}
 
 	protected static PathTermination PathTerminationFromString(string purpose) =>
-		purpose switch
-		{
-			  // => Termination						| Via
-			"IF" => PathTermination.UntilCrossing	| PathTermination.Direct,
-			"TF" => PathTermination.UntilCrossing	| PathTermination.Direct,
-			"CF" => PathTermination.UntilCrossing	| PathTermination.Course,
-			"DF" => PathTermination.UntilCrossing	| PathTermination.Direct,
-			"FA" => PathTermination.UntilAltitude	| PathTermination.Direct,
-			"FC" => PathTermination.ForDistance		| PathTermination.Track,
-			"FD" => PathTermination.UntilDistance	| PathTermination.Track,
-			"FM" => PathTermination.UntilTerminated	| PathTermination.Track,
-			"CA" => PathTermination.UntilAltitude	| PathTermination.Course,
-			"CD" => PathTermination.UntilDistance	| PathTermination.Course,
-			"CI" => PathTermination.UntilIntercept	| PathTermination.Course,
-			"CR" => PathTermination.UntilRadial		| PathTermination.Course,
-			"RF" => PathTermination.ForDistance		| PathTermination.Arc,
-			"AF" => PathTermination.UntilCrossing	| PathTermination.Arc,
-			"VA" => PathTermination.UntilAltitude	| PathTermination.Heading,
-			"VD" => PathTermination.UntilDistance	| PathTermination.Heading,
-			"VI" => PathTermination.UntilIntercept	| PathTermination.Heading,
-			"VM" => PathTermination.UntilTerminated	| PathTermination.Heading,
-			"VR" => PathTermination.UntilRadial		| PathTermination.Heading,
+		purpose switch {
+			// => Termination						| Via
+			"IF" => PathTermination.UntilCrossing | PathTermination.Direct,
+			"TF" => PathTermination.UntilCrossing | PathTermination.Direct,
+			"CF" => PathTermination.UntilCrossing | PathTermination.Course,
+			"DF" => PathTermination.UntilCrossing | PathTermination.Direct,
+			"FA" => PathTermination.UntilAltitude | PathTermination.Direct,
+			"FC" => PathTermination.ForDistance | PathTermination.Track,
+			"FD" => PathTermination.UntilDistance | PathTermination.Track,
+			"FM" => PathTermination.UntilTerminated | PathTermination.Track,
+			"CA" => PathTermination.UntilAltitude | PathTermination.Course,
+			"CD" => PathTermination.UntilDistance | PathTermination.Course,
+			"CI" => PathTermination.UntilIntercept | PathTermination.Course,
+			"CR" => PathTermination.UntilRadial | PathTermination.Course,
+			"RF" => PathTermination.ForDistance | PathTermination.Arc,
+			"AF" => PathTermination.UntilCrossing | PathTermination.Arc,
+			"VA" => PathTermination.UntilAltitude | PathTermination.Heading,
+			"VD" => PathTermination.UntilDistance | PathTermination.Heading,
+			"VI" => PathTermination.UntilIntercept | PathTermination.Heading,
+			"VM" => PathTermination.UntilTerminated | PathTermination.Heading,
+			"VR" => PathTermination.UntilRadial | PathTermination.Heading,
 
-			"HA" => PathTermination.UntilAltitude	| PathTermination.Hold,
-			"HF" => PathTermination.UntilCrossing	| PathTermination.Hold,
-			"HM" => PathTermination.UntilTerminated	| PathTermination.Hold,
+			"HA" => PathTermination.UntilAltitude | PathTermination.Hold,
+			"HF" => PathTermination.UntilCrossing | PathTermination.Hold,
+			"HM" => PathTermination.UntilTerminated | PathTermination.Hold,
 
-			"PI" => PathTermination.UntilIntercept	| PathTermination.ProcedureTurn,
+			"PI" => PathTermination.UntilIntercept | PathTermination.ProcedureTurn,
 
 
 			/* ******************************************** *
@@ -158,21 +162,21 @@ public abstract record ProcedureLine(string Client, string Header,
 	public enum PathTermination
 	{
 		// Termination
-		UntilCrossing	= 0b_0000001,
-		UntilAltitude	= 0b_0000010,
-		UntilDistance	= 0b_0000100,
-		UntilIntercept	= 0b_0001000,
-		UntilRadial		= 0b_0010000,
-		ForDistance		= 0b_0100000,
-		UntilTerminated	= 0b_1000000,
+		UntilCrossing = 0b_0000001,
+		UntilAltitude = 0b_0000010,
+		UntilDistance = 0b_0000100,
+		UntilIntercept = 0b_0001000,
+		UntilRadial = 0b_0010000,
+		ForDistance = 0b_0100000,
+		UntilTerminated = 0b_1000000,
 
 		// Via
-		Heading			= 0b_000001_0000000,
-		Track			= 0b_000010_0000000,
-		Course			= 0b_000100_0000000,
-		Arc				= 0b_001000_0000000,
-		ProcedureTurn	= 0b_010000_0000000,
-		Direct			= 0b_100000_0000000,
+		Heading = 0b_000001_0000000,
+		Track = 0b_000010_0000000,
+		Course = 0b_000100_0000000,
+		Arc = 0b_001000_0000000,
+		ProcedureTurn = 0b_010000_0000000,
+		Direct = 0b_100000_0000000,
 
 		// Hold
 		Hold = 0b_1_000000_0000000
@@ -224,7 +228,7 @@ public record SIDLine(string Client,
 		else
 			CheckEmpty(line, 44, 47);
 
-		(PathTermination pathTerm, IProcedureVia? via) = GetPathSegment(line);
+		(PathTermination pathTerm, IProcedureEndpoint? ep, IProcedureVia? via) = GetPathSegment(line);
 		if (via is Racetrack r)
 			via = r with { Waypoint = fix };
 
@@ -252,8 +256,8 @@ public record SIDLine(string Client,
 
 		CheckEmpty(line, 102, 106);
 		// line[106..111] is part of the pathterm.
-		CheckEmpty(line, 111, 112);
-		// line[112..116] is part of the pathterm.
+		Check(line, 111, 112, " ", "A"); // Can be 'A' sometimes for some reason? (see KJAC ALPIN4)
+										 // line[112..116] is part of the pathterm.
 		CheckEmpty(line, 116, 117);
 		char speedLimit = line[117]; // ??? Looks like either '-' or ' ', not really sure why.
 		CheckEmpty(line, 118, 123);
@@ -261,7 +265,7 @@ public record SIDLine(string Client,
 		int frn = int.Parse(line[123..128]);
 		int cycle = int.Parse(line[128..132]);
 
-		return new(client, airport, name, routeType, transitionIdentifier, pathTerm, fix,
+		return new(client, airport, name, routeType, transitionIdentifier, pathTerm, ep ?? fix,
 			via, altitudeRestriction, speedRestriction, frn, cycle);
 	}
 
@@ -333,7 +337,7 @@ public record STARLine(string Client,
 
 		bool initialFix = line[47..49] == "IF";
 
-		(PathTermination pathTerm, IProcedureVia? procVia) = GetPathSegment(line);
+		(PathTermination pathTerm, IProcedureEndpoint? ep, IProcedureVia? procVia) = GetPathSegment(line);
 		if (procVia is Racetrack r)
 			procVia = r with { Waypoint = fix };
 
@@ -366,7 +370,7 @@ public record STARLine(string Client,
 		int cycle = int.Parse(line[128..132]);
 
 		return new(client, airport, name, routeType, transitionIdentifier, initialFix, pathTerm,
-			fix, procVia, altitudeRestriction, speedRestriction, frn, cycle);
+			ep ?? fix, procVia, altitudeRestriction, speedRestriction, frn, cycle);
 	}
 
 	public static bool TryParse(string line, [NotNullWhen(true)] out STARLine? result)
@@ -437,7 +441,7 @@ public record ApproachLine(string Client,
 		bool overfly = rnp is not null && rnp % 10 == 1;
 
 		string? referencedNavaid = null;
-		(PathTermination pathTerm, IProcedureVia? procVia) = GetPathSegment(line);
+		(PathTermination pathTerm, IProcedureEndpoint? ep, IProcedureVia? procVia) = GetPathSegment(line);
 		if (procVia is Racetrack r)
 			procVia = r with { Waypoint = fix };
 		else if (pathTerm.HasFlag(PathTermination.Course) && !string.IsNullOrWhiteSpace(line[50..54]))
@@ -479,7 +483,7 @@ public record ApproachLine(string Client,
 		int frn = int.Parse(line[123..128]);
 		int cycle = int.Parse(line[128..132]);
 
-		return new(client, airport, name, routeType, transitionIdentifier, pathTerm, fix, procVia, referencedNavaid,
+		return new(client, airport, name, routeType, transitionIdentifier, pathTerm, ep ?? fix, procVia, referencedNavaid,
 			altitudeRestriction, speedRestriction, frn, cycle);
 	}
 
@@ -537,7 +541,29 @@ public interface IProcedureEndpoint
 		public override IProcedureEndpoint? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
 			if (reader.TokenType == JsonTokenType.StartArray)
-				return JsonSerializer.Deserialize<Coordinate>(ref reader, options);
+				return JsonSerializer.Deserialize<ICoordinate>(ref reader, options);
+			else if (reader.TokenType == JsonTokenType.StartObject)
+			{
+				reader.Read();
+				if (reader.TokenType != JsonTokenType.PropertyName)
+					throw new JsonException();
+
+				var prop = reader.GetString();
+				reader.Read();
+
+				IProcedureEndpoint retval =
+					 prop switch {
+						 "distance" => JsonSerializer.Deserialize<Distance>(ref reader, options)!,
+						 "radial" => JsonSerializer.Deserialize<Radial>(ref reader, options)!,
+						 _ => throw new JsonException()
+					 };
+				reader.Read();
+
+				if (reader.TokenType != JsonTokenType.EndObject)
+					throw new JsonException();
+
+				return retval;
+			}
 			else
 				throw new JsonException();
 		}
@@ -546,8 +572,22 @@ public interface IProcedureEndpoint
 		{
 			switch (value)
 			{
-				case Coordinate c:
+				case ICoordinate c:
 					JsonSerializer.Serialize(writer, c, options);
+					break;
+
+				case Distance d:
+					writer.WriteStartObject();
+					writer.WritePropertyName("distance");
+					JsonSerializer.Serialize(writer, d, options);
+					writer.WriteEndObject();
+					break;
+
+				case Radial r:
+					writer.WriteStartObject();
+					writer.WritePropertyName("radial");
+					JsonSerializer.Serialize(writer, r, options);
+					writer.WriteEndObject();
 					break;
 
 				default:
@@ -595,8 +635,7 @@ public interface IProcedureVia
 				throw new JsonException();
 
 			reader.Read();
-			IProcedureVia? retval = type switch
-			{
+			IProcedureVia? retval = type switch {
 				"Arc" => JsonSerializer.Deserialize<Arc>(ref reader, options),
 				"Course" => JsonSerializer.Deserialize<Course>(ref reader, options),
 				"Racetrack" => JsonSerializer.Deserialize<Racetrack>(ref reader, options),

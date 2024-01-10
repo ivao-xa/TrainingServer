@@ -50,7 +50,7 @@ public class AirspaceTest
 		{
 			BoundaryViaType.GreatCircle => new BoundaryLine(bvt, new(ctr)),
 			BoundaryViaType.Circle => new BoundaryCircle(bvt, new(ctr), (ushort)dist!),
-			BoundaryViaType.ClockwiseArc or BoundaryViaType.CounterClockwiseArc => new BoundaryArc(bvt, new(ctr), (decimal)dist!.Value, new((decimal)bearing!.Value), new(arcvertex!)),
+			BoundaryViaType.ClockwiseArc or BoundaryViaType.CounterClockwiseArc => new BoundaryArc(bvt, new Coordinate(ctr), (decimal)dist!.Value, new((decimal)bearing!.Value), new(arcvertex!)),
 			BoundaryViaType.RhumbLine => throw new NotImplementedException(),
 			_ => throw new NotImplementedException()
 		};
